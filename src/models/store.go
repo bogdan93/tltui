@@ -24,3 +24,18 @@ func FetchAllProjects() []Project {
 		{ID: 20, Name: "IoT Platform", OdooID: 120},
 	}
 }
+
+func FetchAllWorkhourDetails() []WorkhourDetails {
+	return []WorkhourDetails{
+		{ID: 1, Name: "Regular Work", ShortName: "Work", IsWork: true},
+		{ID: 2, Name: "Overtime", ShortName: "OT", IsWork: true},
+		{ID: 3, Name: "Vacation", ShortName: "Vac", IsWork: false},
+		{ID: 4, Name: "Sick Leave", ShortName: "Sick", IsWork: false},
+		{ID: 5, Name: "Training", ShortName: "Train", IsWork: true},
+		{ID: 6, Name: "Meeting", ShortName: "Meet", IsWork: true},
+		{ID: 7, Name: "Break", ShortName: "Break", IsWork: false},
+		{ID: 8, Name: "Holiday", ShortName: "Holiday", IsWork: false},
+		{ID: 9, Name: "Remote Work", ShortName: "Remote", IsWork: true},
+		{ID: 10, Name: "On-Call", ShortName: "OnCall", IsWork: true},
+	}
+}

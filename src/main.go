@@ -10,13 +10,10 @@ import (
 
 func initModel() models.AppModel {
 	return models.AppModel{
-		Mode:     models.ModeViewProjects,
-		Projects: models.NewProjectsModel(),
+		Mode:            models.ModeViewWorkhourDetails,
+		Projects:        models.NewProjectsModel(),
+		WorkhourDetails: models.NewWorkhourDetailsModel(),
 
-		WorkhoursDetails: []models.WorkhourDetails{
-			{ID: 1, Name: "Development", ShortName: "Dev", IsWork: true},
-			{ID: 2, Name: "Meeting", ShortName: "Meet", IsWork: true},
-		},
 		Workhours: []models.Workhour{
 			{DetailsID: 1, ProjectID: 1, Hours: 5.0},
 			{DetailsID: 2, ProjectID: 1, Hours: 2.0},

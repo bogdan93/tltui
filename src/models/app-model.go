@@ -4,7 +4,6 @@ import (
 	"time-logger-tui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type WorkhourDetails struct {
@@ -25,7 +24,6 @@ type AppMode int
 const (
 	ModeViewCalendar AppMode = iota
 	ModeViewProjects
-	ModeViewWorkhours
 	ModeViewWorkhourDetails
 )
 
@@ -34,9 +32,9 @@ type AppModel struct {
 
 	// Projects List
 	Projects ProjectsModel
+	WorkhourDetails WorkhourDetailsModel
 
 	// Data
-	WorkhoursDetails []WorkhourDetails
 	Workhours        []Workhour
 }
 
@@ -60,10 +58,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.Projects.Update(msg)
 	}
 
+	if m.Mode == ModeViewWorkhourDetails {
+		return m.WorkhourDetails.Update(msg)
+	}
+
 	return m, tea.Batch(cmds...)
 }
-
-var globalStyle = lipgloss.NewStyle().Padding(1)
 
 func (m AppModel) View() string {
 	switch m.Mode {
@@ -74,7 +74,7 @@ func (m AppModel) View() string {
 		return render.RenderPageLayout("Workhours", "Workhours view is under construction. Press 'q' to quit.")
 
 	case ModeViewWorkhourDetails:
-		return render.RenderPageLayout("Workhour Details", "Workhour Details view is under construction. Press 'q' to quit.")
+		return m.WorkhourDetails.View()
 
 	case ModeViewCalendar:
 		return render.RenderPageLayout("Calendar", "Calendar view is under construction. Press 'q' to quit.")
