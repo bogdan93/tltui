@@ -2,7 +2,7 @@ package models
 
 import (
 	"strings"
-	"time-logger-tui/src/render"
+	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

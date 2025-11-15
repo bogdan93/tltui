@@ -2,7 +2,7 @@ package models
 
 import (
 	"time"
-	"time-logger-tui/src/render"
+	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

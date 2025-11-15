@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"time-logger-tui/src/render"
+	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -146,45 +146,45 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "left", "h":
-			// Move selection left one day
-			m.SelectedDate = m.SelectedDate.AddDate(0, 0, -1)
-			// Update view if moved to different month
-			m.ViewMonth = int(m.SelectedDate.Month())
-			m.ViewYear = m.SelectedDate.Year()
+			// Move selection left one day (clamped to visible grid)
+			newDate := m.SelectedDate.AddDate(0, 0, -1)
+			if m.isDateInVisibleGrid(newDate) {
+				m.SelectedDate = newDate
+			}
 			return m, nil
 
 		case "right", "l":
-			// Move selection right one day
-			m.SelectedDate = m.SelectedDate.AddDate(0, 0, 1)
-			// Update view if moved to different month
-			m.ViewMonth = int(m.SelectedDate.Month())
-			m.ViewYear = m.SelectedDate.Year()
+			// Move selection right one day (clamped to visible grid)
+			newDate := m.SelectedDate.AddDate(0, 0, 1)
+			if m.isDateInVisibleGrid(newDate) {
+				m.SelectedDate = newDate
+			}
 			return m, nil
 
 		case "up", "k":
-			// Move selection up one week
-			m.SelectedDate = m.SelectedDate.AddDate(0, 0, -7)
-			// Update view if moved to different month
-			m.ViewMonth = int(m.SelectedDate.Month())
-			m.ViewYear = m.SelectedDate.Year()
+			// Move selection up one week (clamped to visible grid)
+			newDate := m.SelectedDate.AddDate(0, 0, -7)
+			if m.isDateInVisibleGrid(newDate) {
+				m.SelectedDate = newDate
+			}
 			return m, nil
 
 		case "down", "j":
-			// Move selection down one week
-			m.SelectedDate = m.SelectedDate.AddDate(0, 0, 7)
-			// Update view if moved to different month
-			m.ViewMonth = int(m.SelectedDate.Month())
-			m.ViewYear = m.SelectedDate.Year()
+			// Move selection down one week (clamped to visible grid)
+			newDate := m.SelectedDate.AddDate(0, 0, 7)
+			if m.isDateInVisibleGrid(newDate) {
+				m.SelectedDate = newDate
+			}
 			return m, nil
 
-		case "p":
+		case "<":
 			// Previous month - move selected date and update view
 			m.SelectedDate = m.SelectedDate.AddDate(0, -1, 0)
 			m.ViewMonth = int(m.SelectedDate.Month())
 			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
-		case "n":
+		case ">":
 			// Next month - move selected date and update view
 			m.SelectedDate = m.SelectedDate.AddDate(0, 1, 0)
 			m.ViewMonth = int(m.SelectedDate.Month())
@@ -196,13 +196,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ResetToCurrentMonth()
 			return m, nil
 
-		case "c":
-			// Copy workhours from selected date
+		case "y":
+			// Yank (copy) workhours from selected date
 			m.YankedWorkhours = m.getWorkhoursForDate(m.SelectedDate)
 			m.YankedFromDate = m.SelectedDate
 			return m, nil
 
-		case "v":
+		case "p":
 			// Paste copied workhours to selected date (replaces existing)
 			if len(m.YankedWorkhours) == 0 {
 				return m, nil
@@ -226,6 +226,14 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					return m, DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
 				}
+			}
+			return m, nil
+
+		case "d":
+			// Delete all workhours for selected date
+			err := DeleteWorkhoursByDate(m.SelectedDate)
+			if err != nil {
+				return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
 			}
 			return m, nil
 
@@ -414,7 +422,7 @@ func (m CalendarModel) View() string {
 	sb.WriteString("\n")
 
 	// Add minimal help text
-	helpItems := []string{"←/→: day", "↑/↓: week", "enter: view", "?: help"}
+	helpItems := []string{"←/→: day", "↑/↓: week", "</>: month", "?: help"}
 	helpText := render.RenderHelpText(helpItems...)
 	sb.WriteString("\n")
 	sb.WriteString(helpText)
@@ -463,6 +471,26 @@ func (m CalendarModel) isSameDay(date1, date2 time.Time) bool {
 	return y1 == y2 && m1 == m2 && d1 == d2
 }
 
+// isDateInVisibleGrid checks if a date is visible in the current calendar grid
+func (m CalendarModel) isDateInVisibleGrid(date time.Time) bool {
+	grid := m.getCalendarGrid()
+
+	// Normalize all dates to midnight for comparison
+	normalizedDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
+
+	// Check if date matches any cell in the grid
+	for week := 0; week < 6; week++ {
+		for day := 0; day < 7; day++ {
+			gridDate := grid[week][day]
+			if m.isSameDay(normalizedDate, gridDate) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // getWorkhoursForDate returns all workhours for a specific date from the database
 func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
 	workhours, err := GetWorkhoursByDate(date)
@@ -498,11 +526,12 @@ func (m CalendarModel) renderHelpModal() string {
 	helpItems := [][]string{
 		{"←/h, →/l", "Move selection left/right by one day"},
 		{"↑/k, ↓/j", "Move selection up/down by one week"},
-		{"p", "Previous month"},
-		{"n", "Next month"},
+		{"<", "Previous month"},
+		{">", "Next month"},
 		{"r", "Reset to current month"},
-		{"c", "Copy workhours from selected day"},
-		{"v", "Paste copied workhours to selected day"},
+		{"y", "Yank workhours from selected day"},
+		{"p", "Paste yanked workhours to selected day"},
+		{"d", "Delete all workhours from selected day"},
 		{"g", "Generate report for current month"},
 		{"enter", "View/edit workhours for selected day"},
 		{"?", "Toggle this help"},

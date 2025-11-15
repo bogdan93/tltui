@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"time-logger-tui/src/render"
+	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"

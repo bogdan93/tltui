@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"time"
-	"time-logger-tui/src/models"
+	"tltui/src/models"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
