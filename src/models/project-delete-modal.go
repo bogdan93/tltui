@@ -34,13 +34,13 @@ func (m *ProjectDeleteModal) Update(msg tea.Msg) (ProjectDeleteModal, tea.Cmd) {
 		case "y", "Y", "enter":
 			// Confirm delete
 			return *m, tea.Batch(
-				dispatchDeletedMsg(m.ProjectID),
+				dispatchProjectDeletedMsg(m.ProjectID),
 			)
 
 		case "n", "N", "esc":
 			// Cancel delete
 			return *m, tea.Batch(
-				dispatchDeleteCanceledMsg(),
+				dispatchProjectDeleteCanceledMsg(),
 			)
 		}
 	}
@@ -92,7 +92,7 @@ func (m *ProjectDeleteModal) View(Width, Height int) string {
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
-func dispatchDeletedMsg(projectID int) tea.Cmd {
+func dispatchProjectDeletedMsg(projectID int) tea.Cmd {
 	return func() tea.Msg {
 		return ProjectDeletedMsg{
 			ProjectID: projectID,
@@ -100,7 +100,7 @@ func dispatchDeletedMsg(projectID int) tea.Cmd {
 	}
 }
 
-func dispatchDeleteCanceledMsg() tea.Cmd {
+func dispatchProjectDeleteCanceledMsg() tea.Cmd {
 	return func() tea.Msg {
 		return ProjectDeleteCanceledMsg{}
 	}

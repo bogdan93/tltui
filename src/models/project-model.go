@@ -22,6 +22,7 @@ type ProjectsModel struct {
 
 	ProjectEditModal   *ProjectEditModal
 	ProjectCreateModal *ProjectCreateModal
+	ProjectDeleteModal *ProjectDeleteModal
 
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
@@ -141,6 +142,34 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ProjectEditCanceledMsg:
 		m.ProjectEditModal = nil
 		return m, nil
+
+	case ProjectDeletedMsg:
+		// Find and delete the project
+		for i := range m.Projects {
+			if m.Projects[i].ID == msg.ProjectID {
+				// Remove project from slice
+				m.Projects = append(m.Projects[:i], m.Projects[i+1:]...)
+				break
+			}
+		}
+
+		// Update table
+		rows := []table.Row{}
+		for _, p := range m.Projects {
+			rows = append(rows, table.Row{
+				fmt.Sprintf("%d", p.ID),
+				p.Name,
+				fmt.Sprintf("%d", p.OdooID),
+			})
+		}
+		m.ProjectsTable.SetRows(rows)
+		m.ProjectDeleteModal = nil
+		return m, nil
+
+	case ProjectDeleteCanceledMsg:
+		m.ProjectDeleteModal = nil
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
@@ -162,16 +191,32 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ProjectCreateModal = nil
 				return m, nil
 			}
+			if m.ProjectDeleteModal != nil {
+				m.ProjectDeleteModal = nil
+				return m, nil
+			}
 			return m, tea.Quit
 
 		case "n":
-			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil {
+			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
 				m.ProjectCreateModal = NewProjectCreateModal()
 				return m, nil
 			}
 
+		case "d":
+			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
+				selectedProject := m.getSelectedProject()
+				if selectedProject != nil {
+					m.ProjectDeleteModal = NewProjectDeleteModal(
+						selectedProject.ID,
+						selectedProject.Name,
+					)
+					return m, nil
+				}
+			}
+
 		case "enter":
-			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil {
+			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
 				selectedProject := m.getSelectedProject()
 				if selectedProject != nil {
 					m.ProjectEditModal = NewProjectEditModal(
@@ -195,6 +240,11 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.ProjectDeleteModal != nil {
+		_, cmd := m.ProjectDeleteModal.Update(msg)
+		return m, cmd
+	}
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -208,7 +258,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ProjectsModel) View() string {
-	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "q: quit")
+	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "d: delete", "q: quit")
 	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
 
 	if m.ProjectEditModal != nil {
@@ -217,6 +267,10 @@ func (m ProjectsModel) View() string {
 
 	if m.ProjectCreateModal != nil {
 		return m.ProjectCreateModal.View(m.Width, m.Height)
+	}
+
+	if m.ProjectDeleteModal != nil {
+		return m.ProjectDeleteModal.View(m.Width, m.Height)
 	}
 
 	return m.ProjectsViewport.View() + "\n" + helpText
