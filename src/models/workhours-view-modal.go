@@ -29,10 +29,13 @@ type WorkhoursViewModal struct {
 	// Mode management
 	Mode ModalMode
 
+	// View mode selection
+	SelectedWorkhourIndex int // Index in Workhours array for edit/delete
+
 	// Create/Edit mode fields
 	HoursInput             textinput.Model
 	SelectedDetailsIndex   int // Index in WorkhourDetails array
-	SelectedProjectIndex   int // Index in Projects array (0 = None)
+	SelectedProjectIndex   int // Index in Projects array (-1 = None)
 	FocusedInput           int // 0=details, 1=project, 2=hours
 	ErrorMessage           string
 }
@@ -46,15 +49,16 @@ func NewWorkhoursViewModal(date time.Time, workhours []Workhour, workhourDetails
 	hoursInput.Width = 20
 
 	return &WorkhoursViewModal{
-		Date:            date,
-		Workhours:       workhours,
-		WorkhourDetails: workhourDetails,
-		Projects:        projects,
-		Mode:            ModeView,
-		HoursInput:      hoursInput,
-		SelectedDetailsIndex: 0,
-		SelectedProjectIndex: -1, // -1 means no project selected (optional)
-		FocusedInput:    0,
+		Date:                  date,
+		Workhours:             workhours,
+		WorkhourDetails:       workhourDetails,
+		Projects:              projects,
+		Mode:                  ModeView,
+		HoursInput:            hoursInput,
+		SelectedWorkhourIndex: 0,
+		SelectedDetailsIndex:  0,
+		SelectedProjectIndex:  -1, // -1 means no project selected (optional)
+		FocusedInput:          0,
 	}
 }
 
@@ -78,7 +82,7 @@ func (m *WorkhoursViewModal) updateViewMode(msg tea.Msg) (WorkhoursViewModal, te
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "q", "enter":
+		case "esc", "q":
 			// Close modal
 			return *m, tea.Batch(
 				dispatchWorkhoursViewModalClosedMsg(),
@@ -86,6 +90,28 @@ func (m *WorkhoursViewModal) updateViewMode(msg tea.Msg) (WorkhoursViewModal, te
 		case "n":
 			// Switch to create mode
 			m.initializeCreateMode()
+			return *m, nil
+		case "e", "enter":
+			// Switch to edit mode if there are workhours
+			if len(m.Workhours) > 0 {
+				m.initializeEditMode()
+				return *m, nil
+			}
+			// If no workhours, close modal on enter
+			return *m, tea.Batch(
+				dispatchWorkhoursViewModalClosedMsg(),
+			)
+		case "up", "k":
+			// Navigate workhour selection up
+			if len(m.Workhours) > 0 {
+				m.SelectedWorkhourIndex = (m.SelectedWorkhourIndex - 1 + len(m.Workhours)) % len(m.Workhours)
+			}
+			return *m, nil
+		case "down", "j":
+			// Navigate workhour selection down
+			if len(m.Workhours) > 0 {
+				m.SelectedWorkhourIndex = (m.SelectedWorkhourIndex + 1) % len(m.Workhours)
+			}
 			return *m, nil
 		}
 	}
@@ -156,13 +182,113 @@ func (m *WorkhoursViewModal) updateCreateMode(msg tea.Msg) (WorkhoursViewModal, 
 }
 
 func (m *WorkhoursViewModal) updateEditMode(msg tea.Msg) (WorkhoursViewModal, tea.Cmd) {
-	// TODO: Implement edit mode
-	return *m, nil
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			// Validate and submit
+			return m.submitEdit()
+
+		case "esc":
+			// Cancel and return to view mode
+			m.Mode = ModeView
+			m.ErrorMessage = ""
+			return *m, nil
+
+		case "tab":
+			m.FocusedInput = (m.FocusedInput + 1) % 3
+			m.updateInputFocus()
+			return *m, nil
+
+		case "shift+tab":
+			m.FocusedInput = (m.FocusedInput - 1 + 3) % 3
+			m.updateInputFocus()
+			return *m, nil
+
+		case "up":
+			if m.FocusedInput == 0 && len(m.WorkhourDetails) > 0 {
+				m.SelectedDetailsIndex = (m.SelectedDetailsIndex - 1 + len(m.WorkhourDetails)) % len(m.WorkhourDetails)
+			} else if m.FocusedInput == 1 && len(m.Projects) > 0 {
+				if m.SelectedProjectIndex < 0 {
+					m.SelectedProjectIndex = len(m.Projects) - 1
+				} else {
+					m.SelectedProjectIndex = (m.SelectedProjectIndex - 1 + len(m.Projects)) % len(m.Projects)
+				}
+			}
+			return *m, nil
+
+		case "down":
+			if m.FocusedInput == 0 && len(m.WorkhourDetails) > 0 {
+				m.SelectedDetailsIndex = (m.SelectedDetailsIndex + 1) % len(m.WorkhourDetails)
+			} else if m.FocusedInput == 1 && len(m.Projects) > 0 {
+				if m.SelectedProjectIndex < 0 {
+					m.SelectedProjectIndex = 0
+				} else {
+					m.SelectedProjectIndex = (m.SelectedProjectIndex + 1) % len(m.Projects)
+				}
+			}
+			return *m, nil
+		}
+	}
+
+	// Update hours input if focused
+	if m.FocusedInput == 2 {
+		m.HoursInput, cmd = m.HoursInput.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return *m, tea.Batch(cmds...)
 }
 
 func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, tea.Cmd) {
 	// TODO: Implement delete mode
 	return *m, nil
+}
+
+func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
+	// Validate hours
+	hoursStr := strings.TrimSpace(m.HoursInput.Value())
+	if hoursStr == "" {
+		m.ErrorMessage = "Hours is required"
+		return *m, nil
+	}
+
+	var hours float64
+	_, err := fmt.Sscanf(hoursStr, "%f", &hours)
+	if err != nil || hours <= 0 {
+		m.ErrorMessage = "Hours must be a positive number"
+		return *m, nil
+	}
+
+	// Get selected details ID
+	if len(m.WorkhourDetails) == 0 || m.SelectedDetailsIndex >= len(m.WorkhourDetails) {
+		m.ErrorMessage = "Please select a workhour type"
+		return *m, nil
+	}
+	detailsID := m.WorkhourDetails[m.SelectedDetailsIndex].ID
+
+	// Validate project selection (required)
+	if m.SelectedProjectIndex < 0 || m.SelectedProjectIndex >= len(m.Projects) {
+		m.ErrorMessage = "Please select a project"
+		return *m, nil
+	}
+	projectID := m.Projects[m.SelectedProjectIndex].ID
+
+	// Get the original workhour to edit
+	if m.SelectedWorkhourIndex < 0 || m.SelectedWorkhourIndex >= len(m.Workhours) {
+		m.ErrorMessage = "Invalid workhour selection"
+		return *m, nil
+	}
+
+	// Clear error and dispatch edit message
+	m.ErrorMessage = ""
+	m.Mode = ModeView // Return to view mode after editing
+	return *m, tea.Batch(
+		dispatchWorkhourEditedMsg(m.SelectedWorkhourIndex, m.Date, detailsID, projectID, hours),
+	)
 }
 
 func (m *WorkhoursViewModal) submitCreate() (WorkhoursViewModal, tea.Cmd) {
@@ -272,7 +398,18 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	var totalWorkHours float64
 	var totalNonWorkHours float64
 
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("39"))
+
 	for i, wh := range m.Workhours {
+		// Add selection indicator
+		prefix := "  "
+		if i == m.SelectedWorkhourIndex {
+			prefix = "▶ "
+		}
+		sb.WriteString(prefix)
+
 		// Find the workhour details
 		var details *WorkhourDetails
 		for _, wd := range m.WorkhourDetails {
@@ -299,13 +436,21 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 			hoursStr = fmt.Sprintf("%d", int(wh.Hours))
 		}
 
+		// Style for this entry
+		entryLabelStyle := labelStyle
+		entryValueStyle := valueStyle
+		if i == m.SelectedWorkhourIndex {
+			entryLabelStyle = selectedStyle
+			entryValueStyle = selectedStyle
+		}
+
 		// Display entry
 		if details != nil {
-			sb.WriteString(labelStyle.Render(fmt.Sprintf("%s %s: ", details.ShortName, details.Name)))
-			sb.WriteString(valueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
+			sb.WriteString(entryLabelStyle.Render(fmt.Sprintf("%s %s: ", details.ShortName, details.Name)))
+			sb.WriteString(entryValueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
 
 			if project != nil {
-				sb.WriteString(valueStyle.Render(fmt.Sprintf(" (%s)", project.Name)))
+				sb.WriteString(entryValueStyle.Render(fmt.Sprintf(" (%s)", project.Name)))
 			}
 
 			// Track totals
@@ -315,8 +460,8 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 				totalNonWorkHours += wh.Hours
 			}
 		} else {
-			sb.WriteString(labelStyle.Render(fmt.Sprintf("Unknown: ")))
-			sb.WriteString(valueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
+			sb.WriteString(entryLabelStyle.Render(fmt.Sprintf("Unknown: ")))
+			sb.WriteString(entryValueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
 		}
 
 		if i < len(m.Workhours)-1 {
@@ -359,7 +504,7 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	sb.WriteString(totalStyle.Render(fmt.Sprintf("%sh", totalHoursStr)))
 
 	sb.WriteString("\n")
-	sb.WriteString(helpStyle.Render("n: new • ESC/Enter: close"))
+	sb.WriteString(helpStyle.Render("n: new • e/Enter: edit • ↑/↓: select • ESC: close"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
@@ -483,8 +628,121 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 }
 
 func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
-	// TODO: Implement edit mode view
-	return ""
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("214")). // Orange for edit
+		MarginBottom(1)
+
+	dateStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("86")). // Cyan
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("241"))
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Italic(true)
+
+	focusedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("39"))
+
+	// Title
+	sb.WriteString(titleStyle.Render("Edit Work Hours"))
+	sb.WriteString("\n")
+
+	// Date (read-only)
+	dateStr := m.Date.Format("Monday, January 2, 2006")
+	sb.WriteString(dateStyle.Render(dateStr))
+	sb.WriteString("\n\n")
+
+	// WorkhourDetails selection
+	sb.WriteString(labelStyle.Render("Type:"))
+	sb.WriteString("\n")
+	for i, details := range m.WorkhourDetails {
+		style := valueStyle
+		prefix := "  "
+		if i == m.SelectedDetailsIndex {
+			if m.FocusedInput == 0 {
+				style = focusedStyle
+				prefix = "▶ "
+			} else {
+				prefix = "• "
+			}
+		}
+		workType := "work"
+		if !details.IsWork {
+			workType = "non-work"
+		}
+		sb.WriteString(prefix + style.Render(fmt.Sprintf("%s %s (%s)", details.ShortName, details.Name, workType)))
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n")
+
+	// Project selection
+	sb.WriteString(labelStyle.Render("Project:"))
+	sb.WriteString("\n")
+
+	if len(m.Projects) == 0 {
+		// No projects available - show hint
+		hintStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true)
+		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
+		sb.WriteString("\n")
+	} else {
+		// Project list
+		for i, project := range m.Projects {
+			style := valueStyle
+			prefix := "  "
+			if i == m.SelectedProjectIndex {
+				if m.FocusedInput == 1 {
+					style = focusedStyle
+					prefix = "▶ "
+				} else {
+					prefix = "• "
+				}
+			}
+			sb.WriteString(prefix + style.Render(fmt.Sprintf("%s (Odoo: %d)", project.Name, project.OdooID)))
+			sb.WriteString("\n")
+		}
+	}
+	sb.WriteString("\n")
+
+	// Hours input
+	sb.WriteString(labelStyle.Render("Hours:"))
+	sb.WriteString("\n")
+	if m.FocusedInput == 2 {
+		sb.WriteString("▶ ")
+	} else {
+		sb.WriteString("  ")
+	}
+	sb.WriteString(m.HoursInput.View())
+	sb.WriteString("\n\n")
+
+	// Error message (always reserve space to prevent shifting)
+	errorStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")).
+		Bold(true)
+	if m.ErrorMessage != "" {
+		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
+	} else {
+		// Empty space to maintain consistent height
+		sb.WriteString(" ")
+	}
+	sb.WriteString("\n\n")
+
+	sb.WriteString(helpStyle.Render("Tab: next • ↑/↓: select • Enter: save • ESC: cancel"))
+
+	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
 func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
@@ -505,9 +763,29 @@ type WorkhourCreatedMsg struct {
 	Hours     float64
 }
 
+type WorkhourEditedMsg struct {
+	Index     int // Index in Workhours array
+	Date      time.Time
+	DetailsID int
+	ProjectID int
+	Hours     float64
+}
+
 func dispatchWorkhourCreatedMsg(date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourCreatedMsg{
+			Date:      date,
+			DetailsID: detailsID,
+			ProjectID: projectID,
+			Hours:     hours,
+		}
+	}
+}
+
+func dispatchWorkhourEditedMsg(index int, date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
+	return func() tea.Msg {
+		return WorkhourEditedMsg{
+			Index:     index,
 			Date:      date,
 			DetailsID: detailsID,
 			ProjectID: projectID,
@@ -528,6 +806,46 @@ func (m *WorkhoursViewModal) initializeCreateMode() {
 	} else {
 		m.SelectedProjectIndex = -1
 	}
+	m.FocusedInput = 0
+	m.ErrorMessage = ""
+	m.updateInputFocus()
+}
+
+// Helper method to initialize edit mode
+func (m *WorkhoursViewModal) initializeEditMode() {
+	if len(m.Workhours) == 0 || m.SelectedWorkhourIndex >= len(m.Workhours) {
+		return
+	}
+
+	m.Mode = ModeEdit
+	wh := m.Workhours[m.SelectedWorkhourIndex]
+
+	// Set hours input
+	hoursStr := fmt.Sprintf("%.1f", wh.Hours)
+	if wh.Hours == float64(int(wh.Hours)) {
+		hoursStr = fmt.Sprintf("%d", int(wh.Hours))
+	}
+	m.HoursInput.SetValue(hoursStr)
+	m.HoursInput.Focus()
+
+	// Find and set the details index
+	m.SelectedDetailsIndex = 0
+	for i, details := range m.WorkhourDetails {
+		if details.ID == wh.DetailsID {
+			m.SelectedDetailsIndex = i
+			break
+		}
+	}
+
+	// Find and set the project index
+	m.SelectedProjectIndex = -1
+	for i, project := range m.Projects {
+		if project.ID == wh.ProjectID {
+			m.SelectedProjectIndex = i
+			break
+		}
+	}
+
 	m.FocusedInput = 0
 	m.ErrorMessage = ""
 	m.updateInputFocus()

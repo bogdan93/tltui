@@ -59,6 +59,33 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
+	case WorkhourEditedMsg:
+		// Find and update the workhour
+		dayWorkhours := m.getWorkhoursForDate(msg.Date)
+		if msg.Index >= 0 && msg.Index < len(dayWorkhours) {
+			// Find this workhour in the main array and update it
+			targetWh := dayWorkhours[msg.Index]
+			for i := range m.Workhours {
+				if m.Workhours[i].Date.Equal(targetWh.Date) &&
+					m.Workhours[i].DetailsID == targetWh.DetailsID &&
+					m.Workhours[i].ProjectID == targetWh.ProjectID &&
+					m.Workhours[i].Hours == targetWh.Hours {
+					// Update the workhour
+					m.Workhours[i].DetailsID = msg.DetailsID
+					m.Workhours[i].ProjectID = msg.ProjectID
+					m.Workhours[i].Hours = msg.Hours
+					break
+				}
+			}
+
+			// Update the modal's workhours to show the updated entry
+			if m.WorkhoursViewModal != nil {
+				m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+			}
+		}
+
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
