@@ -68,17 +68,31 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
-		case "1":
-			m.Mode = ModeViewCalendar
-			// Reset calendar to current month when switching to it
-			m.Calendar.ResetToCurrentMonth()
-			return m, nil
-		case "2":
-			m.Mode = ModeViewProjects
-			return m, nil
-		case "3":
-			m.Mode = ModeViewWorkhourDetails
-			return m, nil
+		case "1", "2", "3":
+			// Don't handle tab switching if any modal is open
+			if m.Projects.ProjectEditModal != nil ||
+				m.Projects.ProjectCreateModal != nil ||
+				m.WorkhourDetails.WorkhourDetailsEditModal != nil ||
+				m.WorkhourDetails.WorkhourDetailsCreateModal != nil ||
+				m.WorkhourDetails.WorkhourDetailsDeleteModal != nil {
+				// Modal is open, let the number key pass through to the modal
+				break
+			}
+
+			// No modal open, handle tab switching
+			switch msg.String() {
+			case "1":
+				m.Mode = ModeViewCalendar
+				// Reset calendar to current month when switching to it
+				m.Calendar.ResetToCurrentMonth()
+				return m, nil
+			case "2":
+				m.Mode = ModeViewProjects
+				return m, nil
+			case "3":
+				m.Mode = ModeViewWorkhourDetails
+				return m, nil
+			}
 		}
 	}
 
