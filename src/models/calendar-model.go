@@ -191,19 +191,25 @@ func (m CalendarModel) View() string {
 			}
 
 			// Get workhours for this day and format them
-			var workhourEmojis string
+			var workhourLines []string
 			if !cellDay.IsZero() {
 				workhours := m.getWorkhoursForDate(cellDay)
 				for _, wh := range workhours {
 					details := m.getWorkhourDetailsByID(wh.DetailsID)
 					if details != nil {
-						workhourEmojis += details.ShortName + " "
+						// Format hours nicely (remove .0 for whole numbers)
+						hoursStr := fmt.Sprintf("%.1f", wh.Hours)
+						if wh.Hours == float64(int(wh.Hours)) {
+							hoursStr = fmt.Sprintf("%d", int(wh.Hours))
+						}
+						workhourLines = append(workhourLines, fmt.Sprintf("%s %sh", details.ShortName, hoursStr))
 					}
 				}
 			}
 
-			// Format cell content with day number at top and workhour emojis below
-			formattedContent := cellContent + "\n" + workhourEmojis
+			// Format cell content with day number at top and workhours below
+			workhourText := strings.Join(workhourLines, " ")
+			formattedContent := cellContent + "\n" + workhourText
 			dayCells = append(dayCells, cellStyle.Render(formattedContent))
 		}
 
