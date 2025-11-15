@@ -1,0 +1,121 @@
+package models
+
+import (
+	"database/sql"
+	"fmt"
+)
+
+// GetAllProjectsFromDB retrieves all projects from the database
+func GetAllProjectsFromDB() ([]Project, error) {
+	rows, err := db.Query("SELECT id, odoo_id, name FROM projects ORDER BY id")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []Project
+	for rows.Next() {
+		var p Project
+		if err := rows.Scan(&p.ID, &p.OdooID, &p.Name); err != nil {
+			return nil, fmt.Errorf("failed to scan project: %w", err)
+		}
+		projects = append(projects, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating projects: %w", err)
+	}
+
+	return projects, nil
+}
+
+// GetProjectByID retrieves a single project by ID
+func GetProjectByID(id int) (*Project, error) {
+	var p Project
+	err := db.QueryRow("SELECT id, odoo_id, name FROM projects WHERE id = ?", id).
+		Scan(&p.ID, &p.OdooID, &p.Name)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	return &p, nil
+}
+
+// CreateProject inserts a new project into the database
+func CreateProject(project Project) error {
+	_, err := db.Exec(
+		"INSERT INTO projects (id, odoo_id, name) VALUES (?, ?, ?)",
+		project.ID, project.OdooID, project.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	return nil
+}
+
+// UpdateProject updates an existing project
+func UpdateProject(project Project) error {
+	result, err := db.Exec(
+		"UPDATE projects SET odoo_id = ?, name = ? WHERE id = ?",
+		project.OdooID, project.Name, project.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update project: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("project not found")
+	}
+
+	return nil
+}
+
+// DeleteProject deletes a project by ID
+func DeleteProject(id int) error {
+	result, err := db.Exec("DELETE FROM projects WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("failed to delete project: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("project not found")
+	}
+
+	return nil
+}
+
+// SeedProjects seeds the initial projects into the database
+func SeedProjects() error {
+	// Check if projects already exist
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check projects: %w", err)
+	}
+
+	// Only seed if table is empty
+	if count > 0 {
+		return nil
+	}
+
+	projects := FetchAllProjects()
+	for _, p := range projects {
+		if err := CreateProject(p); err != nil {
+			return fmt.Errorf("failed to seed project: %w", err)
+		}
+	}
+
+	return nil
+}

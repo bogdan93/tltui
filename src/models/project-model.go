@@ -32,7 +32,14 @@ type ProjectsModel struct {
 
 func NewProjectsModel() ProjectsModel {
 	m := ProjectsModel{}
-	m.Projects = FetchAllProjects()
+
+	// Load from database
+	projects, err := GetAllProjectsFromDB()
+	if err != nil {
+		// Fallback to empty if error
+		projects = []Project{}
+	}
+	m.Projects = projects
 
 	// Calculate next available ID
 	m.NextID = 1
@@ -99,7 +106,17 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Name:   msg.Name,
 			OdooID: msg.OdooID,
 		}
-		m.Projects = append(m.Projects, newProject)
+
+		// Save to database
+		err := CreateProject(newProject)
+		if err != nil {
+			// TODO: Handle error properly
+			m.ProjectCreateModal = nil
+			return m, nil
+		}
+
+		// Reload from database
+		m.Projects, _ = GetAllProjectsFromDB()
 		m.NextID++
 
 		// Update table
@@ -120,13 +137,22 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ProjectEditedMsg:
-		for i := range m.Projects {
-			if m.Projects[i].ID == msg.ProjectID {
-				m.Projects[i].Name = msg.Name
-				m.Projects[i].OdooID = msg.OdooID
-				break
-			}
+		// Update in database
+		updatedProject := Project{
+			ID:     msg.ProjectID,
+			Name:   msg.Name,
+			OdooID: msg.OdooID,
 		}
+		err := UpdateProject(updatedProject)
+		if err != nil {
+			// TODO: Handle error properly
+			m.ProjectEditModal = nil
+			return m, nil
+		}
+
+		// Reload from database
+		m.Projects, _ = GetAllProjectsFromDB()
+
 		rows := []table.Row{}
 		for _, p := range m.Projects {
 			rows = append(rows, table.Row{
@@ -144,14 +170,16 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ProjectDeletedMsg:
-		// Find and delete the project
-		for i := range m.Projects {
-			if m.Projects[i].ID == msg.ProjectID {
-				// Remove project from slice
-				m.Projects = append(m.Projects[:i], m.Projects[i+1:]...)
-				break
-			}
+		// Delete from database
+		err := DeleteProject(msg.ProjectID)
+		if err != nil {
+			// TODO: Handle error properly
+			m.ProjectDeleteModal = nil
+			return m, nil
 		}
+
+		// Reload from database
+		m.Projects, _ = GetAllProjectsFromDB()
 
 		// Update table
 		rows := []table.Row{}

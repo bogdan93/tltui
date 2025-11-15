@@ -26,7 +26,14 @@ type WorkhourDetailsModel struct {
 
 func NewWorkhourDetailsModel() WorkhourDetailsModel {
 	m := WorkhourDetailsModel{}
-	m.WorkhourDetails = FetchAllWorkhourDetails()
+
+	// Load from database
+	workhourDetails, err := GetAllWorkhourDetailsFromDB()
+	if err != nil {
+		// Fallback to empty if error
+		workhourDetails = []WorkhourDetails{}
+	}
+	m.WorkhourDetails = workhourDetails
 
 	// Calculate next available ID
 	m.NextID = 1
@@ -101,7 +108,17 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ShortName: msg.ShortName,
 			IsWork:    msg.IsWork,
 		}
-		m.WorkhourDetails = append(m.WorkhourDetails, newWorkhourDetail)
+
+		// Save to database
+		err := CreateWorkhourDetails(newWorkhourDetail)
+		if err != nil {
+			// TODO: Handle error properly
+			m.WorkhourDetailsCreateModal = nil
+			return m, nil
+		}
+
+		// Reload from database
+		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
 		m.NextID++
 
 		// Update table
@@ -127,14 +144,16 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDetailsDeletedMsg:
-		// Find and delete the workhour detail
-		for i := range m.WorkhourDetails {
-			if m.WorkhourDetails[i].ID == msg.WorkhourDetailID {
-				// Remove workhour detail from slice
-				m.WorkhourDetails = append(m.WorkhourDetails[:i], m.WorkhourDetails[i+1:]...)
-				break
-			}
+		// Delete from database
+		err := DeleteWorkhourDetails(msg.WorkhourDetailID)
+		if err != nil {
+			// TODO: Handle error properly
+			m.WorkhourDetailsDeleteModal = nil
+			return m, nil
 		}
+
+		// Reload from database
+		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
 
 		// Update table
 		rows := []table.Row{}
@@ -159,14 +178,23 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDetailsEditedMsg:
-		for i := range m.WorkhourDetails {
-			if m.WorkhourDetails[i].ID == msg.WorkhourDetailID {
-				m.WorkhourDetails[i].Name = msg.Name
-				m.WorkhourDetails[i].ShortName = msg.ShortName
-				m.WorkhourDetails[i].IsWork = msg.IsWork
-				break
-			}
+		// Update in database
+		updatedWorkhourDetail := WorkhourDetails{
+			ID:        msg.WorkhourDetailID,
+			Name:      msg.Name,
+			ShortName: msg.ShortName,
+			IsWork:    msg.IsWork,
 		}
+		err := UpdateWorkhourDetails(updatedWorkhourDetail)
+		if err != nil {
+			// TODO: Handle error properly
+			m.WorkhourDetailsEditModal = nil
+			return m, nil
+		}
+
+		// Reload from database
+		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
+
 		rows := []table.Row{}
 		for _, wd := range m.WorkhourDetails {
 			isWorkStr := "No"

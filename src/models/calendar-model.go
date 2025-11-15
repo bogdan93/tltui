@@ -16,9 +16,6 @@ type CalendarModel struct {
 	SelectedDate    time.Time
 	ViewMonth       int // Month being viewed (1-12)
 	ViewYear        int // Year being viewed
-	Workhours       []Workhour
-	WorkhourDetails []WorkhourDetails
-	Projects        []Project
 
 	WorkhoursViewModal *WorkhoursViewModal
 
@@ -47,14 +44,18 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourCreatedMsg:
-		// Add new workhour to the list
+		// Add new workhour to the database
 		newWorkhour := Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
 			ProjectID: msg.ProjectID,
 			Hours:     msg.Hours,
 		}
-		m.Workhours = append(m.Workhours, newWorkhour)
+		_, err := CreateWorkhour(newWorkhour)
+		if err != nil {
+			// TODO: Handle error properly (could show error message)
+			return m, nil
+		}
 
 		// Update the modal's workhours to show the new entry
 		if m.WorkhoursViewModal != nil {
@@ -64,56 +65,40 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourEditedMsg:
-		// Find and update the workhour
-		dayWorkhours := m.getWorkhoursForDate(msg.Date)
-		if msg.Index >= 0 && msg.Index < len(dayWorkhours) {
-			// Find this workhour in the main array and update it
-			targetWh := dayWorkhours[msg.Index]
-			for i := range m.Workhours {
-				if m.Workhours[i].Date.Equal(targetWh.Date) &&
-					m.Workhours[i].DetailsID == targetWh.DetailsID &&
-					m.Workhours[i].ProjectID == targetWh.ProjectID &&
-					m.Workhours[i].Hours == targetWh.Hours {
-					// Update the workhour
-					m.Workhours[i].DetailsID = msg.DetailsID
-					m.Workhours[i].ProjectID = msg.ProjectID
-					m.Workhours[i].Hours = msg.Hours
-					break
-				}
-			}
+		// Update the workhour in the database
+		updatedWorkhour := Workhour{
+			Date:      msg.Date,
+			DetailsID: msg.DetailsID,
+			ProjectID: msg.ProjectID,
+			Hours:     msg.Hours,
+		}
+		err := UpdateWorkhour(msg.ID, updatedWorkhour)
+		if err != nil {
+			// TODO: Handle error properly (could show error message)
+			return m, nil
+		}
 
-			// Update the modal's workhours to show the updated entry
-			if m.WorkhoursViewModal != nil {
-				m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
-			}
+		// Update the modal's workhours to show the updated entry
+		if m.WorkhoursViewModal != nil {
+			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
 		}
 
 		return m, nil
 
 	case WorkhourDeletedMsg:
-		// Find and delete the workhour
-		dayWorkhours := m.getWorkhoursForDate(msg.Date)
-		if msg.Index >= 0 && msg.Index < len(dayWorkhours) {
-			// Find this workhour in the main array and delete it
-			targetWh := dayWorkhours[msg.Index]
-			for i := range m.Workhours {
-				if m.Workhours[i].Date.Equal(targetWh.Date) &&
-					m.Workhours[i].DetailsID == targetWh.DetailsID &&
-					m.Workhours[i].ProjectID == targetWh.ProjectID &&
-					m.Workhours[i].Hours == targetWh.Hours {
-					// Delete the workhour by removing it from the slice
-					m.Workhours = append(m.Workhours[:i], m.Workhours[i+1:]...)
-					break
-				}
-			}
+		// Delete the workhour from the database
+		err := DeleteWorkhour(msg.ID)
+		if err != nil {
+			// TODO: Handle error properly (could show error message)
+			return m, nil
+		}
 
-			// Update the modal's workhours to show the updated list
-			if m.WorkhoursViewModal != nil {
-				m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
-				// Adjust selected index if needed
-				if m.WorkhoursViewModal.SelectedWorkhourIndex >= len(m.WorkhoursViewModal.Workhours) && len(m.WorkhoursViewModal.Workhours) > 0 {
-					m.WorkhoursViewModal.SelectedWorkhourIndex = len(m.WorkhoursViewModal.Workhours) - 1
-				}
+		// Update the modal's workhours to show the updated list
+		if m.WorkhoursViewModal != nil {
+			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+			// Adjust selected index if needed
+			if m.WorkhoursViewModal.SelectedWorkhourIndex >= len(m.WorkhoursViewModal.Workhours) && len(m.WorkhoursViewModal.Workhours) > 0 {
+				m.WorkhoursViewModal.SelectedWorkhourIndex = len(m.WorkhoursViewModal.Workhours) - 1
 			}
 		}
 
@@ -189,18 +174,16 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "v":
-			// Paste copied workhours to selected date
+			// Paste copied workhours to selected date (replaces existing)
 			if len(m.YankedWorkhours) > 0 {
-				// First, remove all existing workhours for the selected date
-				var filteredWorkhours []Workhour
-				for _, wh := range m.Workhours {
-					if !m.isSameDay(wh.Date, m.SelectedDate) {
-						filteredWorkhours = append(filteredWorkhours, wh)
-					}
+				// First, delete all existing workhours for the selected date from database
+				err := DeleteWorkhoursByDate(m.SelectedDate)
+				if err != nil {
+					// TODO: Handle error properly
+					return m, nil
 				}
-				m.Workhours = filteredWorkhours
 
-				// Then add the copied workhours with the new date
+				// Then add the copied workhours with the new date to database
 				for _, wh := range m.YankedWorkhours {
 					newWorkhour := Workhour{
 						Date:      m.SelectedDate,
@@ -208,7 +191,11 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						ProjectID: wh.ProjectID,
 						Hours:     wh.Hours,
 					}
-					m.Workhours = append(m.Workhours, newWorkhour)
+					_, err := CreateWorkhour(newWorkhour)
+					if err != nil {
+						// TODO: Handle error properly
+						return m, nil
+					}
 				}
 			}
 			return m, nil
@@ -217,11 +204,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Open workhours view modal for selected date
 			if m.WorkhoursViewModal == nil {
 				workhours := m.getWorkhoursForDate(m.SelectedDate)
+				workhourDetails, _ := GetAllWorkhourDetailsFromDB()
+				projects, _ := GetAllProjectsFromDB()
 				m.WorkhoursViewModal = NewWorkhoursViewModal(
 					m.SelectedDate,
 					workhours,
-					m.WorkhourDetails,
-					m.Projects,
+					workhourDetails,
+					projects,
 				)
 				return m, nil
 			}
@@ -438,23 +427,21 @@ func (m CalendarModel) isSameDay(date1, date2 time.Time) bool {
 	return y1 == y2 && m1 == m2 && d1 == d2
 }
 
-// getWorkhoursForDate returns all workhours for a specific date
+// getWorkhoursForDate returns all workhours for a specific date from the database
 func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
-	var result []Workhour
-	for _, wh := range m.Workhours {
-		if m.isSameDay(wh.Date, date) {
-			result = append(result, wh)
-		}
+	workhours, err := GetWorkhoursByDate(date)
+	if err != nil {
+		// Return empty slice on error (could log this in the future)
+		return []Workhour{}
 	}
-	return result
+	return workhours
 }
 
-// getWorkhourDetailsByID returns the WorkhourDetails for a given ID
+// getWorkhourDetailsByID returns the WorkhourDetails for a given ID from the database
 func (m CalendarModel) getWorkhourDetailsByID(id int) *WorkhourDetails {
-	for i := range m.WorkhourDetails {
-		if m.WorkhourDetails[i].ID == id {
-			return &m.WorkhourDetails[i]
-		}
+	details, err := GetWorkhourDetailsByID(id)
+	if err != nil {
+		return nil
 	}
-	return nil
+	return details
 }

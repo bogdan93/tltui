@@ -256,9 +256,10 @@ func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, 
 		case "y", "Y", "enter":
 			// Confirm delete
 			if m.SelectedWorkhourIndex >= 0 && m.SelectedWorkhourIndex < len(m.Workhours) {
+				workhourID := m.Workhours[m.SelectedWorkhourIndex].ID
 				m.Mode = ModeView
 				return *m, tea.Batch(
-					dispatchWorkhourDeletedMsg(m.SelectedWorkhourIndex, m.Date),
+					dispatchWorkhourDeletedMsg(workhourID, m.Date),
 				)
 			}
 			// Invalid selection, just return to view mode
@@ -310,11 +311,13 @@ func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
 		return *m, nil
 	}
 
+	workhourID := m.Workhours[m.SelectedWorkhourIndex].ID
+
 	// Clear error and dispatch edit message
 	m.ErrorMessage = ""
 	m.Mode = ModeView // Return to view mode after editing
 	return *m, tea.Batch(
-		dispatchWorkhourEditedMsg(m.SelectedWorkhourIndex, m.Date, detailsID, projectID, hours),
+		dispatchWorkhourEditedMsg(workhourID, m.Date, detailsID, projectID, hours),
 	)
 }
 
@@ -885,7 +888,7 @@ type WorkhourCreatedMsg struct {
 }
 
 type WorkhourEditedMsg struct {
-	Index     int // Index in Workhours array
+	ID        int // Database ID of the workhour
 	Date      time.Time
 	DetailsID int
 	ProjectID int
@@ -893,8 +896,8 @@ type WorkhourEditedMsg struct {
 }
 
 type WorkhourDeletedMsg struct {
-	Index int       // Index in day's Workhours array
-	Date  time.Time // Date to identify which day
+	ID   int       // Database ID of the workhour
+	Date time.Time // Date to identify which day
 }
 
 func dispatchWorkhourCreatedMsg(date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
@@ -908,10 +911,10 @@ func dispatchWorkhourCreatedMsg(date time.Time, detailsID int, projectID int, ho
 	}
 }
 
-func dispatchWorkhourEditedMsg(index int, date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
+func dispatchWorkhourEditedMsg(id int, date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourEditedMsg{
-			Index:     index,
+			ID:        id,
 			Date:      date,
 			DetailsID: detailsID,
 			ProjectID: projectID,
@@ -920,11 +923,11 @@ func dispatchWorkhourEditedMsg(index int, date time.Time, detailsID int, project
 	}
 }
 
-func dispatchWorkhourDeletedMsg(index int, date time.Time) tea.Cmd {
+func dispatchWorkhourDeletedMsg(id int, date time.Time) tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourDeletedMsg{
-			Index: index,
-			Date:  date,
+			ID:   id,
+			Date: date,
 		}
 	}
 }

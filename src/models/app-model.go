@@ -15,6 +15,7 @@ type WorkhourDetails struct {
 }
 
 type Workhour struct {
+	ID        int
 	Date      time.Time
 	DetailsID int
 	ProjectID int
@@ -36,9 +37,6 @@ type AppModel struct {
 	Calendar        CalendarModel
 	Projects        ProjectsModel
 	WorkhourDetails WorkhourDetailsModel
-
-	// Data
-	Workhours []Workhour
 }
 
 func (m AppModel) Init() tea.Cmd {
