@@ -1,6 +1,7 @@
 package models
 
 import (
+	"time"
 	"time-logger-tui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -14,6 +15,7 @@ type WorkhourDetails struct {
 }
 
 type Workhour struct {
+	Date      time.Time
 	DetailsID int
 	ProjectID int
 	Hours     float64

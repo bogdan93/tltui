@@ -11,11 +11,13 @@ import (
 )
 
 type CalendarModel struct {
-	Width        int
-	Height       int
-	SelectedDate time.Time
-	ViewMonth    int // Month being viewed (1-12)
-	ViewYear     int // Year being viewed
+	Width           int
+	Height          int
+	SelectedDate    time.Time
+	ViewMonth       int // Month being viewed (1-12)
+	ViewYear        int // Year being viewed
+	Workhours       []Workhour
+	WorkhourDetails []WorkhourDetails
 }
 
 func NewCalendarModel() CalendarModel {
@@ -88,21 +90,12 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateViewToSelectedDate updates the view month/year to match the selected date
-func (m *CalendarModel) updateViewToSelectedDate() {
-	m.ViewMonth = int(m.SelectedDate.Month())
-	m.ViewYear = m.SelectedDate.Year()
-}
-
 func (m CalendarModel) View() string {
 	var sb strings.Builder
 
 	// Calculate cell width based on available width
 	// Reserve space for padding and borders
-	availableWidth := m.Width - 6 // Account for global padding
-	if availableWidth < 70 {
-		availableWidth = 70 // Minimum width
-	}
+	availableWidth := max( m.Width-6, 70)
 	cellWidth := availableWidth / 7
 
 	// Render month and year header
@@ -145,11 +138,11 @@ func (m CalendarModel) View() string {
 
 	// Render calendar grid
 	var weekRows []string
-	for week := 0; week < 6; week++ {
+	for week := range 6 {
 		var dayCells []string
 
 		// Render each day in the week
-		for day := 0; day < 7; day++ {
+		for day := range 7 {
 			cellDay := grid[week][day]
 
 			var cellContent string
@@ -197,8 +190,20 @@ func (m CalendarModel) View() string {
 					Foreground(lipgloss.Color("255"))
 			}
 
-			// Format cell content with day number at top and space for workhours
-			formattedContent := cellContent + "\n\n"
+			// Get workhours for this day and format them
+			var workhourEmojis string
+			if !cellDay.IsZero() {
+				workhours := m.getWorkhoursForDate(cellDay)
+				for _, wh := range workhours {
+					details := m.getWorkhourDetailsByID(wh.DetailsID)
+					if details != nil {
+						workhourEmojis += details.ShortName + " "
+					}
+				}
+			}
+
+			// Format cell content with day number at top and workhour emojis below
+			formattedContent := cellContent + "\n" + workhourEmojis
 			dayCells = append(dayCells, cellStyle.Render(formattedContent))
 		}
 
@@ -239,8 +244,8 @@ func (m CalendarModel) getCalendarGrid() [6][7]time.Time {
 
 	// Fill the grid
 	currentDate := startDate
-	for week := 0; week < 6; week++ {
-		for day := 0; day < 7; day++ {
+	for week := range 6 {
+		for day := range 7 {
 			grid[week][day] = currentDate
 			currentDate = currentDate.AddDate(0, 0, 1)
 		}
@@ -254,4 +259,25 @@ func (m CalendarModel) isSameDay(date1, date2 time.Time) bool {
 	y1, m1, d1 := date1.Date()
 	y2, m2, d2 := date2.Date()
 	return y1 == y2 && m1 == m2 && d1 == d2
+}
+
+// getWorkhoursForDate returns all workhours for a specific date
+func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
+	var result []Workhour
+	for _, wh := range m.Workhours {
+		if m.isSameDay(wh.Date, date) {
+			result = append(result, wh)
+		}
+	}
+	return result
+}
+
+// getWorkhourDetailsByID returns the WorkhourDetails for a given ID
+func (m CalendarModel) getWorkhourDetailsByID(id int) *WorkhourDetails {
+	for i := range m.WorkhourDetails {
+		if m.WorkhourDetails[i].ID == id {
+			return &m.WorkhourDetails[i]
+		}
+	}
+	return nil
 }
