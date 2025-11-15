@@ -67,16 +67,23 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd1, cmd2, cmd3)
 
 	case tea.KeyMsg:
+		// Check if any modal is open
+		isModalOpen := m.Projects.ProjectEditModal != nil ||
+			m.Projects.ProjectCreateModal != nil ||
+			m.Projects.ProjectDeleteModal != nil ||
+			m.WorkhourDetails.WorkhourDetailsEditModal != nil ||
+			m.WorkhourDetails.WorkhourDetailsCreateModal != nil ||
+			m.WorkhourDetails.WorkhourDetailsDeleteModal != nil
+
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
-			return m, tea.Quit
+			// If a modal is open, let it handle the quit key to close itself
+			if !isModalOpen {
+				return m, tea.Quit
+			}
 		case "1", "2", "3":
 			// Don't handle tab switching if any modal is open
-			if m.Projects.ProjectEditModal != nil ||
-				m.Projects.ProjectCreateModal != nil ||
-				m.WorkhourDetails.WorkhourDetailsEditModal != nil ||
-				m.WorkhourDetails.WorkhourDetailsCreateModal != nil ||
-				m.WorkhourDetails.WorkhourDetailsDeleteModal != nil {
+			if isModalOpen {
 				// Modal is open, let the number key pass through to the modal
 				break
 			}

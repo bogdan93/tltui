@@ -182,19 +182,17 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
-			if m.ProjectEditModal != nil {
-				m.ProjectEditModal = nil
-				return m, nil
-			}
-			if m.ProjectCreateModal != nil {
-				m.ProjectCreateModal = nil
-				return m, nil
-			}
+		case "q":
+			// Only close delete modal on 'q' (edit/create modals have text inputs where user might type 'q')
 			if m.ProjectDeleteModal != nil {
 				m.ProjectDeleteModal = nil
 				return m, nil
 			}
+			// If edit/create modal is open, don't intercept - let the modal/textinput handle it
+			if m.ProjectEditModal != nil || m.ProjectCreateModal != nil {
+				break // Don't quit, let it pass through to modal forwarding
+			}
+			// No modal open, quit
 			return m, tea.Quit
 
 		case "n":

@@ -200,19 +200,17 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q", "ctrl+c":
-			if m.WorkhourDetailsEditModal != nil {
-				m.WorkhourDetailsEditModal = nil
-				return m, nil
-			}
-			if m.WorkhourDetailsCreateModal != nil {
-				m.WorkhourDetailsCreateModal = nil
-				return m, nil
-			}
+		case "q":
+			// Only close delete modal on 'q' (edit/create modals have text inputs where user might type 'q')
 			if m.WorkhourDetailsDeleteModal != nil {
 				m.WorkhourDetailsDeleteModal = nil
 				return m, nil
 			}
+			// If edit/create modal is open, don't intercept - let the modal/textinput handle it
+			if m.WorkhourDetailsEditModal != nil || m.WorkhourDetailsCreateModal != nil {
+				break // Don't quit, let it pass through to modal forwarding
+			}
+			// No modal open, quit
 			return m, tea.Quit
 
 		case "n":
