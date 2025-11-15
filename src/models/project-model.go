@@ -93,7 +93,6 @@ func (m ProjectsModel) Init() tea.Cmd {
 func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ProjectCreatedMsg:
-		// Create new project with next available ID
 		newProject := Project{
 			ID:     m.NextID,
 			Name:   msg.Name,

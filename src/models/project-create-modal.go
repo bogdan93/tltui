@@ -11,9 +11,10 @@ import (
 )
 
 type ProjectCreateModal struct {
-	NameInput   textinput.Model
-	OdooIDInput textinput.Model
+	NameInput    textinput.Model
+	OdooIDInput  textinput.Model
 	FocusedInput int // 0 = name, 1 = odoo
+	ErrorMessage string
 }
 
 type ProjectCreatedMsg struct {
@@ -50,12 +51,31 @@ func (m *ProjectCreateModal) Update(msg tea.Msg) (ProjectCreateModal, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			odooID, err := strconv.Atoi(m.OdooIDInput.Value())
-			if err != nil {
-				odooID = 0
+			// Clear error when typing
+			m.ErrorMessage = ""
+
+			name := strings.TrimSpace(m.NameInput.Value())
+			if name == "" {
+				m.ErrorMessage = "Project name is required"
+				return *m, nil
 			}
+
+			odooIDStr := strings.TrimSpace(m.OdooIDInput.Value())
+			if odooIDStr == "" {
+				m.ErrorMessage = "Odoo ID is required"
+				return *m, nil
+			}
+
+			odooID, err := strconv.Atoi(odooIDStr)
+			if err != nil || odooID <= 0 {
+				m.ErrorMessage = "Odoo ID must be a positive number"
+				return *m, nil
+			}
+
+			// Clear error and dispatch
+			m.ErrorMessage = ""
 			return *m, tea.Batch(
-				dispatchCreatedMsg(m.NameInput.Value(), odooID),
+				dispatchCreatedMsg(name, odooID),
 			)
 
 		case "esc":
@@ -112,6 +132,15 @@ func (m *ProjectCreateModal) View(Width, Height int) string {
 	sb.WriteString("\n")
 	sb.WriteString(m.OdooIDInput.View())
 	sb.WriteString("\n\n")
+
+	// Error message
+	if m.ErrorMessage != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
+		sb.WriteString("\n\n")
+	}
 
 	helpStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
