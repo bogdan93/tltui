@@ -63,21 +63,17 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "p":
-			// Previous month
-			m.ViewMonth--
-			if m.ViewMonth < 1 {
-				m.ViewMonth = 12
-				m.ViewYear--
-			}
+			// Previous month - move selected date and update view
+			m.SelectedDate = m.SelectedDate.AddDate(0, -1, 0)
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "n":
-			// Next month
-			m.ViewMonth++
-			if m.ViewMonth > 12 {
-				m.ViewMonth = 1
-				m.ViewYear++
-			}
+			// Next month - move selected date and update view
+			m.SelectedDate = m.SelectedDate.AddDate(0, 1, 0)
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "r":
@@ -229,9 +225,10 @@ func (m CalendarModel) View() string {
 	return sb.String()
 }
 
-// ResetToCurrentMonth resets the view to the current month
+// ResetToCurrentMonth resets the view to the current month and today's date
 func (m *CalendarModel) ResetToCurrentMonth() {
 	now := time.Now()
+	m.SelectedDate = now
 	m.ViewMonth = int(now.Month())
 	m.ViewYear = now.Year()
 }
