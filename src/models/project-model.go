@@ -20,16 +20,26 @@ type ProjectsModel struct {
 	Width  int
 	Height int
 
-	ProjectEditModal *ProjectEditModal
+	ProjectEditModal   *ProjectEditModal
+	ProjectCreateModal *ProjectCreateModal
 
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
 	Projects         []Project
+	NextID           int // Track next available ID for new projects
 }
 
 func NewProjectsModel() ProjectsModel {
 	m := ProjectsModel{}
 	m.Projects = FetchAllProjects()
+
+	// Calculate next available ID
+	m.NextID = 1
+	for _, p := range m.Projects {
+		if p.ID >= m.NextID {
+			m.NextID = p.ID + 1
+		}
+	}
 
 	// Setup table columns
 	columns := []table.Column{
@@ -82,6 +92,33 @@ func (m ProjectsModel) Init() tea.Cmd {
 
 func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ProjectCreatedMsg:
+		// Create new project with next available ID
+		newProject := Project{
+			ID:     m.NextID,
+			Name:   msg.Name,
+			OdooID: msg.OdooID,
+		}
+		m.Projects = append(m.Projects, newProject)
+		m.NextID++
+
+		// Update table
+		rows := []table.Row{}
+		for _, p := range m.Projects {
+			rows = append(rows, table.Row{
+				fmt.Sprintf("%d", p.ID),
+				p.Name,
+				fmt.Sprintf("%d", p.OdooID),
+			})
+		}
+		m.ProjectsTable.SetRows(rows)
+		m.ProjectCreateModal = nil
+		return m, nil
+
+	case ProjectCreateCanceledMsg:
+		m.ProjectCreateModal = nil
+		return m, nil
+
 	case ProjectEditedMsg:
 		for i := range m.Projects {
 			if m.Projects[i].ID == msg.ProjectID {
@@ -101,6 +138,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ProjectsTable.SetRows(rows)
 		m.ProjectEditModal = nil
 		return m, nil
+
 	case ProjectEditCanceledMsg:
 		m.ProjectEditModal = nil
 		return m, nil
@@ -121,9 +159,20 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ProjectEditModal = nil
 				return m, nil
 			}
+			if m.ProjectCreateModal != nil {
+				m.ProjectCreateModal = nil
+				return m, nil
+			}
 			return m, tea.Quit
+
+		case "n":
+			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil {
+				m.ProjectCreateModal = NewProjectCreateModal()
+				return m, nil
+			}
+
 		case "enter":
-			if m.ProjectEditModal == nil {
+			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil {
 				selectedProject := m.getSelectedProject()
 				if selectedProject != nil {
 					m.ProjectEditModal = NewProjectEditModal(
@@ -142,6 +191,11 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.ProjectCreateModal != nil {
+		_, cmd := m.ProjectCreateModal.Update(msg)
+		return m, cmd
+	}
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -155,11 +209,15 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ProjectsModel) View() string {
-	helpText := render.RenderHelpText("↑/↓: navigate", "enter: select", "q: quit")
+	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "q: quit")
 	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
 
 	if m.ProjectEditModal != nil {
 		return m.ProjectEditModal.View(m.Width, m.Height)
+	}
+
+	if m.ProjectCreateModal != nil {
+		return m.ProjectCreateModal.View(m.Width, m.Height)
 	}
 
 	return render.RenderPageLayout(
