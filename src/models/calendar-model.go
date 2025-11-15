@@ -191,7 +191,16 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "v":
 			// Paste copied workhours to selected date
 			if len(m.YankedWorkhours) > 0 {
-				// Create copies of the yanked workhours with the new date
+				// First, remove all existing workhours for the selected date
+				var filteredWorkhours []Workhour
+				for _, wh := range m.Workhours {
+					if !m.isSameDay(wh.Date, m.SelectedDate) {
+						filteredWorkhours = append(filteredWorkhours, wh)
+					}
+				}
+				m.Workhours = filteredWorkhours
+
+				// Then add the copied workhours with the new date
 				for _, wh := range m.YankedWorkhours {
 					newWorkhour := Workhour{
 						Date:      m.SelectedDate,
@@ -263,7 +272,7 @@ func (m CalendarModel) View() string {
 		BorderBottom(true).
 		BorderForeground(lipgloss.Color("240"))
 
-	weekdays := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+	weekdays := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
 	var headerCells []string
 	for i, wd := range weekdays {
 		style := weekdayStyle
@@ -404,9 +413,11 @@ func (m CalendarModel) getCalendarGrid() [6][7]time.Time {
 	// First day of the viewing month
 	firstDay := time.Date(m.ViewYear, time.Month(m.ViewMonth), 1, 0, 0, 0, 0, time.Local)
 
-	// Find the Sunday before or on the first day of the month
+	// Find the Monday before or on the first day of the month
 	weekday := int(firstDay.Weekday()) // 0 = Sunday, 1 = Monday, etc.
-	startDate := firstDay.AddDate(0, 0, -weekday)
+	// Adjust so Monday = 0, Tuesday = 1, ..., Sunday = 6
+	daysFromMonday := (weekday + 6) % 7
+	startDate := firstDay.AddDate(0, 0, -daysFromMonday)
 
 	// Fill the grid
 	currentDate := startDate
