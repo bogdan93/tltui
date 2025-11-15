@@ -30,11 +30,10 @@ const (
 )
 
 type AppModel struct {
+	Mode AppMode
+
 	// Projects List
 	Projects ProjectsModel
-
-	// State
-	Mode AppMode
 
 	// Data
 	WorkhoursDetails []WorkhourDetails

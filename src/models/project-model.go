@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-	"strings"
 	"time-logger-tui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -21,14 +20,13 @@ type ProjectsModel struct {
 	Width  int
 	Height int
 
-	ShowModal        bool
-	ModalContent     string
+	ProjectEditModal *ProjectEditModal
+
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
 	Projects         []Project
 }
 
-// NewProjectsModel creates and initializes a new ProjectsModel
 func NewProjectsModel() ProjectsModel {
 	m := ProjectsModel{}
 	m.Projects = FetchAllProjects()
@@ -83,75 +81,91 @@ func (m ProjectsModel) Init() tea.Cmd {
 }
 
 func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
+	case ProjectEditedMsg:
+		for i := range m.Projects {
+			if m.Projects[i].ID == msg.ProjectID {
+				m.Projects[i].Name = msg.Name
+				m.Projects[i].OdooID = msg.OdooID
+				break
+			}
+		}
+		rows := []table.Row{}
+		for _, p := range m.Projects {
+			rows = append(rows, table.Row{
+				fmt.Sprintf("%d", p.ID),
+				p.Name,
+				fmt.Sprintf("%d", p.OdooID),
+			})
+		}
+		m.ProjectsTable.SetRows(rows)
+		m.ProjectEditModal = nil
+		return m, nil
+	case ProjectEditCanceledMsg:
+		m.ProjectEditModal = nil
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		// Account for: padding top (1) + padding bottom (1) + title (2 lines with margin) + help text (2 lines with margin)
 		verticalMargin := 8
 		tableHeight := msg.Height - verticalMargin
-
-		// Update viewport and table dimensions on resize
 		m.ProjectsViewport.Width = msg.Width - 2
 		m.ProjectsViewport.Height = tableHeight
 		m.ProjectsTable.SetHeight(tableHeight)
-
 		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
-			return m, tea.Quit
-
-		case "esc":
-			// Close modal if open
-			if m.ShowModal {
-				m.ShowModal = false
-				m.ModalContent = ""
+			if m.ProjectEditModal != nil {
+				m.ProjectEditModal = nil
 				return m, nil
 			}
-
+			return m, tea.Quit
 		case "enter":
-			// Show project details modal when in projects view
-			if !m.ShowModal {
+			if m.ProjectEditModal == nil {
 				selectedProject := m.getSelectedProject()
 				if selectedProject != nil {
-					m.ModalContent = m.formatProjectDetails(*selectedProject)
-					m.ShowModal = true
+					m.ProjectEditModal = NewProjectEditModal(
+						selectedProject.ID,
+						selectedProject.Name,
+						selectedProject.OdooID,
+					)
 					return m, nil
 				}
 			}
 		}
 	}
 
-	// Update the table and viewport based on current mode (only if modal is not shown)
-	if !m.ShowModal {
-		m.ProjectsTable, cmd = m.ProjectsTable.Update(msg)
-		cmds = append(cmds, cmd)
-
-		m.ProjectsViewport, cmd = m.ProjectsViewport.Update(msg)
-		cmds = append(cmds, cmd)
+	if m.ProjectEditModal != nil {
+		_, cmd := m.ProjectEditModal.Update(msg)
+		return m, cmd
 	}
 
-	return m, tea.Batch(cmds...)
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
+	m.ProjectsTable, cmd = m.ProjectsTable.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.ProjectsViewport, cmd = m.ProjectsViewport.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m ProjectsModel) View() string {
 	helpText := render.RenderHelpText("↑/↓: navigate", "enter: select", "q: quit")
 	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
 
-	if m.ShowModal {
-		return render.RenderModal(m.Width, m.Height, 0, 0, m.ModalContent)
+	if m.ProjectEditModal != nil {
+		return m.ProjectEditModal.View(m.Width, m.Height)
 	}
 
 	return render.RenderPageLayout(
 		"Projects",
-		m.ProjectsViewport.View() + "\n" + helpText,
-	);
+		m.ProjectsViewport.View()+"\n"+helpText,
+	)
 }
 
 // getSelectedProject returns the currently selected project from the table
@@ -161,43 +175,4 @@ func (m ProjectsModel) getSelectedProject() *Project {
 		return &m.Projects[cursor]
 	}
 	return nil
-}
-
-// formatProjectDetails formats a project's details for display in the modal
-func (m ProjectsModel) formatProjectDetails(project Project) string {
-	var sb strings.Builder
-
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
-
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252"))
-
-	sb.WriteString(titleStyle.Render("Project Details"))
-	sb.WriteString("\n\n")
-
-	sb.WriteString(labelStyle.Render("ID: "))
-	sb.WriteString(valueStyle.Render(fmt.Sprintf("%d", project.ID)))
-	sb.WriteString("\n\n")
-
-	sb.WriteString(labelStyle.Render("Name: "))
-	sb.WriteString(valueStyle.Render(project.Name))
-	sb.WriteString("\n\n")
-
-	sb.WriteString(labelStyle.Render("Odoo ID: "))
-	sb.WriteString(valueStyle.Render(fmt.Sprintf("%d", project.OdooID)))
-	sb.WriteString("\n\n")
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Press ESC to close"))
-
-	return sb.String()
 }
