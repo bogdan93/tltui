@@ -10,7 +10,8 @@ import (
 
 func initModel() models.AppModel {
 	return models.AppModel{
-		Mode:            models.ModeViewWorkhourDetails,
+		Mode:            models.ModeViewCalendar,
+		Calendar:        models.NewCalendarModel(),
 		Projects:        models.NewProjectsModel(),
 		WorkhourDetails: models.NewWorkhourDetailsModel(),
 

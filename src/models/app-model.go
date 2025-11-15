@@ -30,12 +30,13 @@ const (
 type AppModel struct {
 	Mode AppMode
 
-	// Projects List
-	Projects ProjectsModel
+	// Views
+	Calendar        CalendarModel
+	Projects        ProjectsModel
 	WorkhourDetails WorkhourDetailsModel
 
 	// Data
-	Workhours        []Workhour
+	Workhours []Workhour
 }
 
 func (m AppModel) Init() tea.Cmd {
@@ -49,16 +50,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		// Forward window size to all models
-		var cmd1, cmd2 tea.Cmd
+		var cmd1, cmd2, cmd3 tea.Cmd
 		var updatedModel tea.Model
 
-		updatedModel, cmd1 = m.Projects.Update(msg)
+		updatedModel, cmd1 = m.Calendar.Update(msg)
+		m.Calendar = updatedModel.(CalendarModel)
+
+		updatedModel, cmd2 = m.Projects.Update(msg)
 		m.Projects = updatedModel.(ProjectsModel)
 
-		updatedModel, cmd2 = m.WorkhourDetails.Update(msg)
+		updatedModel, cmd3 = m.WorkhourDetails.Update(msg)
 		m.WorkhourDetails = updatedModel.(WorkhourDetailsModel)
 
-		return m, tea.Batch(cmd1, cmd2)
+		return m, tea.Batch(cmd1, cmd2, cmd3)
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -66,6 +70,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "1":
 			m.Mode = ModeViewCalendar
+			// Reset calendar to current month when switching to it
+			m.Calendar.ResetToCurrentMonth()
 			return m, nil
 		case "2":
 			m.Mode = ModeViewProjects
@@ -74,6 +80,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Mode = ModeViewWorkhourDetails
 			return m, nil
 		}
+	}
+
+	if m.Mode == ModeViewCalendar {
+		var cmd tea.Cmd
+		var updatedModel tea.Model
+		updatedModel, cmd = m.Calendar.Update(msg)
+		m.Calendar = updatedModel.(CalendarModel)
+		return m, cmd
 	}
 
 	if m.Mode == ModeViewProjects {
@@ -102,7 +116,7 @@ func (m AppModel) View() string {
 	switch m.Mode {
 	case ModeViewCalendar:
 		activeTabIndex = 0
-		content = "Calendar view is under construction. Press 'q' to quit."
+		content = m.Calendar.View()
 
 	case ModeViewProjects:
 		activeTabIndex = 1
