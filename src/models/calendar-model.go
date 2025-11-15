@@ -45,21 +45,33 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "left", "h":
 			// Move selection left one day
 			m.SelectedDate = m.SelectedDate.AddDate(0, 0, -1)
+			// Update view if moved to different month
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "right", "l":
 			// Move selection right one day
 			m.SelectedDate = m.SelectedDate.AddDate(0, 0, 1)
+			// Update view if moved to different month
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "up", "k":
 			// Move selection up one week
 			m.SelectedDate = m.SelectedDate.AddDate(0, 0, -7)
+			// Update view if moved to different month
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "down", "j":
 			// Move selection down one week
 			m.SelectedDate = m.SelectedDate.AddDate(0, 0, 7)
+			// Update view if moved to different month
+			m.ViewMonth = int(m.SelectedDate.Month())
+			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "p":
