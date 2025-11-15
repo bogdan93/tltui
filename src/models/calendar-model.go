@@ -21,6 +21,10 @@ type CalendarModel struct {
 	Projects        []Project
 
 	WorkhoursViewModal *WorkhoursViewModal
+
+	// Copy/Paste clipboard
+	YankedWorkhours []Workhour // Workhours copied from a day
+	YankedFromDate  time.Time  // The date they were copied from (for feedback)
 }
 
 func NewCalendarModel() CalendarModel {
@@ -178,6 +182,28 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ResetToCurrentMonth()
 			return m, nil
 
+		case "c":
+			// Copy workhours from selected date
+			m.YankedWorkhours = m.getWorkhoursForDate(m.SelectedDate)
+			m.YankedFromDate = m.SelectedDate
+			return m, nil
+
+		case "v":
+			// Paste copied workhours to selected date
+			if len(m.YankedWorkhours) > 0 {
+				// Create copies of the yanked workhours with the new date
+				for _, wh := range m.YankedWorkhours {
+					newWorkhour := Workhour{
+						Date:      m.SelectedDate,
+						DetailsID: wh.DetailsID,
+						ProjectID: wh.ProjectID,
+						Hours:     wh.Hours,
+					}
+					m.Workhours = append(m.Workhours, newWorkhour)
+				}
+			}
+			return m, nil
+
 		case "enter":
 			// Open workhours view modal for selected date
 			if m.WorkhoursViewModal == nil {
@@ -273,6 +299,7 @@ func (m CalendarModel) View() string {
 			// Determine style based on selection and today
 			isToday := m.isSameDay(cellDay, today)
 			isSelected := m.isSameDay(cellDay, m.SelectedDate)
+			isCopied := len(m.YankedWorkhours) > 0 && m.isSameDay(cellDay, m.YankedFromDate)
 			isCurrentMonth := cellDay.Month() == time.Month(m.ViewMonth)
 
 			var cellStyle lipgloss.Style
@@ -292,6 +319,13 @@ func (m CalendarModel) View() string {
 					Bold(true).
 					Foreground(lipgloss.Color("229")).
 					Background(lipgloss.Color("57"))
+			} else if isCopied {
+				// Copied day - green border to indicate clipboard source
+				cellStyle = baseStyle.
+					Bold(true).
+					Foreground(lipgloss.Color("114")). // Green
+					BorderStyle(lipgloss.RoundedBorder()).
+					BorderForeground(lipgloss.Color("114"))
 			} else if isToday {
 				// Today - bold with border
 				cellStyle = baseStyle.
@@ -339,7 +373,15 @@ func (m CalendarModel) View() string {
 	sb.WriteString("\n")
 
 	// Add help text
-	helpText := render.RenderHelpText("←/→: day", "↑/↓: week", "p/n: month", "r: today", "q: quit")
+	var helpItems []string
+	if len(m.YankedWorkhours) > 0 {
+		// Show paste hint when workhours are copied
+		copyCount := fmt.Sprintf("%d copied", len(m.YankedWorkhours))
+		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "v: paste", copyCount, "q: quit"}
+	} else {
+		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "q: quit"}
+	}
+	helpText := render.RenderHelpText(helpItems...)
 	sb.WriteString("\n")
 	sb.WriteString(helpText)
 
