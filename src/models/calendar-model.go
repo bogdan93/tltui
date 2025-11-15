@@ -42,6 +42,23 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.WorkhoursViewModal = nil
 		return m, nil
 
+	case WorkhourCreatedMsg:
+		// Add new workhour to the list
+		newWorkhour := Workhour{
+			Date:      msg.Date,
+			DetailsID: msg.DetailsID,
+			ProjectID: msg.ProjectID,
+			Hours:     msg.Hours,
+		}
+		m.Workhours = append(m.Workhours, newWorkhour)
+
+		// Update the modal's workhours to show the new entry
+		if m.WorkhoursViewModal != nil {
+			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+		}
+
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
