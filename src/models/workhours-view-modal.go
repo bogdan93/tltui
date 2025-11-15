@@ -938,6 +938,15 @@ func (m *WorkhoursViewModal) initializeCreateMode() {
 	m.HoursInput.SetValue("")
 	m.HoursInput.Focus()
 	m.SelectedDetailsIndex = 0
+
+	// Refresh projects and workhour details from database to ensure we have latest data
+	if projects, err := GetAllProjectsFromDB(); err == nil {
+		m.Projects = projects
+	}
+	if details, err := GetAllWorkhourDetailsFromDB(); err == nil {
+		m.WorkhourDetails = details
+	}
+
 	// Preselect first project if available
 	if len(m.Projects) > 0 {
 		m.SelectedProjectIndex = 0
@@ -957,6 +966,14 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 
 	m.Mode = ModeEdit
 	wh := m.Workhours[m.SelectedWorkhourIndex]
+
+	// Refresh projects and workhour details from database to ensure we have latest data
+	if projects, err := GetAllProjectsFromDB(); err == nil {
+		m.Projects = projects
+	}
+	if details, err := GetAllWorkhourDetailsFromDB(); err == nil {
+		m.WorkhourDetails = details
+	}
 
 	// Set hours input
 	hoursStr := fmt.Sprintf("%.1f", wh.Hours)

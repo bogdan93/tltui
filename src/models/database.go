@@ -87,7 +87,8 @@ func createSchema() error {
 	CREATE TABLE IF NOT EXISTS workhour_details (
 		id INTEGER PRIMARY KEY,
 		name TEXT NOT NULL,
-		short_name TEXT NOT NULL
+		short_name TEXT NOT NULL,
+		is_work INTEGER NOT NULL DEFAULT 1
 	);
 
 	CREATE TABLE IF NOT EXISTS workhours (
@@ -96,8 +97,8 @@ func createSchema() error {
 		details_id INTEGER NOT NULL,
 		project_id INTEGER NOT NULL,
 		hours REAL NOT NULL,
-		FOREIGN KEY (details_id) REFERENCES workhour_details(id),
-		FOREIGN KEY (project_id) REFERENCES projects(id)
+		FOREIGN KEY (details_id) REFERENCES workhour_details(id) ON DELETE CASCADE,
+		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_workhours_date ON workhours(date);
@@ -107,12 +108,10 @@ func createSchema() error {
 	return err
 }
 
-// DateToString converts time.Time to ISO 8601 date string (YYYY-MM-DD)
 func DateToString(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-// StringToDate converts ISO 8601 date string to time.Time
 func StringToDate(s string) (time.Time, error) {
 	return time.Parse("2006-01-02", s)
 }

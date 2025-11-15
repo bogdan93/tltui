@@ -7,7 +7,7 @@ import (
 
 // GetAllWorkhourDetailsFromDB retrieves all workhour details from the database
 func GetAllWorkhourDetailsFromDB() ([]WorkhourDetails, error) {
-	rows, err := db.Query("SELECT id, name, short_name FROM workhour_details ORDER BY id")
+	rows, err := db.Query("SELECT id, name, short_name, is_work FROM workhour_details ORDER BY id")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query workhour details: %w", err)
 	}
@@ -16,7 +16,7 @@ func GetAllWorkhourDetailsFromDB() ([]WorkhourDetails, error) {
 	var details []WorkhourDetails
 	for rows.Next() {
 		var d WorkhourDetails
-		if err := rows.Scan(&d.ID, &d.Name, &d.ShortName); err != nil {
+		if err := rows.Scan(&d.ID, &d.Name, &d.ShortName, &d.IsWork); err != nil {
 			return nil, fmt.Errorf("failed to scan workhour details: %w", err)
 		}
 		details = append(details, d)
@@ -32,8 +32,8 @@ func GetAllWorkhourDetailsFromDB() ([]WorkhourDetails, error) {
 // GetWorkhourDetailsByID retrieves a single workhour details by ID
 func GetWorkhourDetailsByID(id int) (*WorkhourDetails, error) {
 	var d WorkhourDetails
-	err := db.QueryRow("SELECT id, name, short_name FROM workhour_details WHERE id = ?", id).
-		Scan(&d.ID, &d.Name, &d.ShortName)
+	err := db.QueryRow("SELECT id, name, short_name, is_work FROM workhour_details WHERE id = ?", id).
+		Scan(&d.ID, &d.Name, &d.ShortName, &d.IsWork)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -48,8 +48,8 @@ func GetWorkhourDetailsByID(id int) (*WorkhourDetails, error) {
 // CreateWorkhourDetails inserts new workhour details into the database
 func CreateWorkhourDetails(details WorkhourDetails) error {
 	_, err := db.Exec(
-		"INSERT INTO workhour_details (id, name, short_name) VALUES (?, ?, ?)",
-		details.ID, details.Name, details.ShortName,
+		"INSERT INTO workhour_details (id, name, short_name, is_work) VALUES (?, ?, ?, ?)",
+		details.ID, details.Name, details.ShortName, details.IsWork,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create workhour details: %w", err)
@@ -60,8 +60,8 @@ func CreateWorkhourDetails(details WorkhourDetails) error {
 // UpdateWorkhourDetails updates existing workhour details
 func UpdateWorkhourDetails(details WorkhourDetails) error {
 	result, err := db.Exec(
-		"UPDATE workhour_details SET name = ?, short_name = ? WHERE id = ?",
-		details.Name, details.ShortName, details.ID,
+		"UPDATE workhour_details SET name = ?, short_name = ?, is_work = ? WHERE id = ?",
+		details.Name, details.ShortName, details.IsWork, details.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update workhour details: %w", err)
