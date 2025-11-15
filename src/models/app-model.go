@@ -47,38 +47,74 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 
+	case tea.WindowSizeMsg:
+		// Forward window size to all models
+		var cmd1, cmd2 tea.Cmd
+		var updatedModel tea.Model
+
+		updatedModel, cmd1 = m.Projects.Update(msg)
+		m.Projects = updatedModel.(ProjectsModel)
+
+		updatedModel, cmd2 = m.WorkhourDetails.Update(msg)
+		m.WorkhourDetails = updatedModel.(WorkhourDetailsModel)
+
+		return m, tea.Batch(cmd1, cmd2)
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
+		case "1":
+			m.Mode = ModeViewCalendar
+			return m, nil
+		case "2":
+			m.Mode = ModeViewProjects
+			return m, nil
+		case "3":
+			m.Mode = ModeViewWorkhourDetails
+			return m, nil
 		}
 	}
 
 	if m.Mode == ModeViewProjects {
-		return m.Projects.Update(msg)
+		var cmd tea.Cmd
+		var updatedModel tea.Model
+		updatedModel, cmd = m.Projects.Update(msg)
+		m.Projects = updatedModel.(ProjectsModel)
+		return m, cmd
 	}
 
 	if m.Mode == ModeViewWorkhourDetails {
-		return m.WorkhourDetails.Update(msg)
+		var cmd tea.Cmd
+		var updatedModel tea.Model
+		updatedModel, cmd = m.WorkhourDetails.Update(msg)
+		m.WorkhourDetails = updatedModel.(WorkhourDetailsModel)
+		return m, cmd
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m AppModel) View() string {
-	switch m.Mode {
-	case ModeViewProjects:
-		return m.Projects.View()
+	var content string
+	var activeTabIndex int
 
-	case ModeViewWorkhours:
-		return render.RenderPageLayout("Workhours", "Workhours view is under construction. Press 'q' to quit.")
+	switch m.Mode {
+	case ModeViewCalendar:
+		activeTabIndex = 0
+		content = "Calendar view is under construction. Press 'q' to quit."
+
+	case ModeViewProjects:
+		activeTabIndex = 1
+		content = m.Projects.View()
 
 	case ModeViewWorkhourDetails:
-		return m.WorkhourDetails.View()
+		activeTabIndex = 2
+		content = m.WorkhourDetails.View()
 
-	case ModeViewCalendar:
-		return render.RenderPageLayout("Calendar", "Calendar view is under construction. Press 'q' to quit.")
+	default:
+		return ""
 	}
 
-	return ""
+	return render.RenderPageLayoutWithTabs(activeTabIndex, content)
 }

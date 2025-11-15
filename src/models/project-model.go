@@ -144,7 +144,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		verticalMargin := 8
+		verticalMargin := 12 // Increased to account for tab bar (4 lines) + padding
 		tableHeight := msg.Height - verticalMargin
 		m.ProjectsViewport.Width = msg.Width - 2
 		m.ProjectsViewport.Height = tableHeight
@@ -219,10 +219,7 @@ func (m ProjectsModel) View() string {
 		return m.ProjectCreateModal.View(m.Width, m.Height)
 	}
 
-	return render.RenderPageLayout(
-		"Projects",
-		m.ProjectsViewport.View()+"\n"+helpText,
-	)
+	return m.ProjectsViewport.View() + "\n" + helpText
 }
 
 // getSelectedProject returns the currently selected project from the table

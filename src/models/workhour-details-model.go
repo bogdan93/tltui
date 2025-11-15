@@ -191,7 +191,7 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		verticalMargin := 8
+		verticalMargin := 12 // Increased to account for tab bar (4 lines) + padding
 		tableHeight := msg.Height - verticalMargin
 		m.WorkhourDetailsViewport.Width = msg.Width - 2
 		m.WorkhourDetailsViewport.Height = tableHeight
@@ -292,10 +292,7 @@ func (m WorkhourDetailsModel) View() string {
 		return m.WorkhourDetailsDeleteModal.View(m.Width, m.Height)
 	}
 
-	return render.RenderPageLayout(
-		"Workhour Details",
-		m.WorkhourDetailsViewport.View()+"\n"+helpText,
-	)
+	return m.WorkhourDetailsViewport.View() + "\n" + helpText
 }
 
 // getSelectedWorkhourDetail returns the currently selected workhour detail from the table
