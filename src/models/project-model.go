@@ -2,8 +2,12 @@ package models
 
 import (
 	"fmt"
+	"strings"
+	"time-logger-tui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -13,33 +17,21 @@ type Project struct {
 	OdooID int
 }
 
-func GetProjects() []Project {
-	return []Project{
-		{ID: 1, Name: "Project A", OdooID: 101},
-		{ID: 2, Name: "Project B", OdooID: 102},
-		{ID: 3, Name: "Internal Tools", OdooID: 103},
-		{ID: 4, Name: "Client Website", OdooID: 104},
-		{ID: 5, Name: "Mobile App", OdooID: 105},
-		{ID: 6, Name: "E-Commerce Platform", OdooID: 106},
-		{ID: 7, Name: "CRM System", OdooID: 107},
-		{ID: 8, Name: "Analytics Dashboard", OdooID: 108},
-		{ID: 9, Name: "Payment Gateway", OdooID: 109},
-		{ID: 10, Name: "Inventory Management", OdooID: 110},
-		{ID: 11, Name: "HR Portal", OdooID: 111},
-		{ID: 12, Name: "Customer Support Tool", OdooID: 112},
-		{ID: 13, Name: "Marketing Automation", OdooID: 113},
-		{ID: 14, Name: "API Gateway", OdooID: 114},
-		{ID: 15, Name: "DevOps Pipeline", OdooID: 115},
-		{ID: 16, Name: "Security Audit", OdooID: 116},
-		{ID: 17, Name: "Database Migration", OdooID: 117},
-		{ID: 18, Name: "Cloud Infrastructure", OdooID: 118},
-		{ID: 19, Name: "Machine Learning Model", OdooID: 119},
-		{ID: 20, Name: "IoT Platform", OdooID: 120},
-	}
+type ProjectsModel struct {
+	Width  int
+	Height int
+
+	ShowModal        bool
+	ModalContent     string
+	ProjectsTable    table.Model
+	ProjectsViewport viewport.Model
+	Projects         []Project
 }
 
-func ProjectsModelInit() table.Model {
-	projects := GetProjects()
+// NewProjectsModel creates and initializes a new ProjectsModel
+func NewProjectsModel() ProjectsModel {
+	m := ProjectsModel{}
+	m.Projects = FetchAllProjects()
 
 	// Setup table columns
 	columns := []table.Column{
@@ -50,7 +42,7 @@ func ProjectsModelInit() table.Model {
 
 	// Convert projects to table rows
 	rows := []table.Row{}
-	for _, p := range projects {
+	for _, p := range m.Projects {
 		rows = append(rows, table.Row{
 			fmt.Sprintf("%d", p.ID),
 			p.Name,
@@ -59,14 +51,14 @@ func ProjectsModelInit() table.Model {
 	}
 
 	// Create table
-	projectsTable := table.New(
+	m.ProjectsTable = table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(10),
+		table.WithHeight(20),
+		table.WithWidth(50),
 	)
 
-	// Style the table
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
@@ -79,7 +71,133 @@ func ProjectsModelInit() table.Model {
 		Background(lipgloss.Color("57")).
 		Bold(true)
 
-	projectsTable.SetStyles(s)
+	m.ProjectsTable.SetStyles(s)
+	m.ProjectsViewport = viewport.New(100, 100)
+	m.ProjectsTable.SetHeight(100)
 
-	return projectsTable
+	return m
+}
+
+func (m ProjectsModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+		// Account for: padding top (1) + padding bottom (1) + title (2 lines with margin) + help text (2 lines with margin)
+		verticalMargin := 8
+		tableHeight := msg.Height - verticalMargin
+
+		// Update viewport and table dimensions on resize
+		m.ProjectsViewport.Width = msg.Width - 2
+		m.ProjectsViewport.Height = tableHeight
+		m.ProjectsTable.SetHeight(tableHeight)
+
+		return m, nil
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+
+		case "esc":
+			// Close modal if open
+			if m.ShowModal {
+				m.ShowModal = false
+				m.ModalContent = ""
+				return m, nil
+			}
+
+		case "enter":
+			// Show project details modal when in projects view
+			if !m.ShowModal {
+				selectedProject := m.getSelectedProject()
+				if selectedProject != nil {
+					m.ModalContent = m.formatProjectDetails(*selectedProject)
+					m.ShowModal = true
+					return m, nil
+				}
+			}
+		}
+	}
+
+	// Update the table and viewport based on current mode (only if modal is not shown)
+	if !m.ShowModal {
+		m.ProjectsTable, cmd = m.ProjectsTable.Update(msg)
+		cmds = append(cmds, cmd)
+
+		m.ProjectsViewport, cmd = m.ProjectsViewport.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
+
+}
+
+func (m ProjectsModel) View() string {
+	helpText := render.RenderHelpText("↑/↓: navigate", "enter: select", "q: quit")
+	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
+
+	if m.ShowModal {
+		return render.RenderModal(m.Width, m.Height, 0, 0, m.ModalContent)
+	}
+
+	return render.RenderPageLayout(
+		"Projects",
+		m.ProjectsViewport.View() + "\n" + helpText,
+	);
+}
+
+// getSelectedProject returns the currently selected project from the table
+func (m ProjectsModel) getSelectedProject() *Project {
+	cursor := m.ProjectsTable.Cursor()
+	if cursor >= 0 && cursor < len(m.Projects) {
+		return &m.Projects[cursor]
+	}
+	return nil
+}
+
+// formatProjectDetails formats a project's details for display in the modal
+func (m ProjectsModel) formatProjectDetails(project Project) string {
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("39")).
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("241"))
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("252"))
+
+	sb.WriteString(titleStyle.Render("Project Details"))
+	sb.WriteString("\n\n")
+
+	sb.WriteString(labelStyle.Render("ID: "))
+	sb.WriteString(valueStyle.Render(fmt.Sprintf("%d", project.ID)))
+	sb.WriteString("\n\n")
+
+	sb.WriteString(labelStyle.Render("Name: "))
+	sb.WriteString(valueStyle.Render(project.Name))
+	sb.WriteString("\n\n")
+
+	sb.WriteString(labelStyle.Render("Odoo ID: "))
+	sb.WriteString(valueStyle.Render(fmt.Sprintf("%d", project.OdooID)))
+	sb.WriteString("\n\n")
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Italic(true)
+	sb.WriteString(helpStyle.Render("Press ESC to close"))
+
+	return sb.String()
 }

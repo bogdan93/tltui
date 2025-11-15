@@ -10,9 +10,8 @@ import (
 
 func initModel() models.AppModel {
 	return models.AppModel{
-		Mode:          models.ModeViewProjects,
-		ProjectsTable: models.ProjectsModelInit(),
-		Projects:      models.GetProjects(),
+		Mode:     models.ModeViewProjects,
+		Projects: models.NewProjectsModel(),
 
 		WorkhoursDetails: []models.WorkhourDetails{
 			{ID: 1, Name: "Development", ShortName: "Dev", IsWork: true},
