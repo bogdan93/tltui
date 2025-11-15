@@ -17,7 +17,8 @@ type CalendarModel struct {
 	ViewMonth       int // Month being viewed (1-12)
 	ViewYear        int // Year being viewed
 
-	WorkhoursViewModal *WorkhoursViewModal
+	WorkhoursViewModal     *WorkhoursViewModal
+	ReportGeneratorModal   *ReportGeneratorModal
 
 	// Copy/Paste clipboard
 	YankedWorkhours []Workhour // Workhours copied from a day
@@ -41,6 +42,16 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case WorkhoursViewModalClosedMsg:
 		m.WorkhoursViewModal = nil
+		return m, nil
+
+	case ReportGeneratorModalClosedMsg:
+		m.ReportGeneratorModal = nil
+		return m, nil
+
+	case ReportGeneratedMsg:
+		// Report generated successfully, close modal
+		m.ReportGeneratorModal = nil
+		// TODO: Show success message with file path
 		return m, nil
 
 	case WorkhourCreatedMsg:
@@ -111,7 +122,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Don't handle navigation keys if modal is open
-		if m.WorkhoursViewModal != nil {
+		if m.WorkhoursViewModal != nil || m.ReportGeneratorModal != nil {
 			break
 		}
 
@@ -200,6 +211,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case "g":
+			// Open report generator modal
+			if m.ReportGeneratorModal == nil {
+				m.ReportGeneratorModal = NewReportGeneratorModal(m.ViewMonth, m.ViewYear)
+				return m, nil
+			}
+
 		case "enter":
 			// Open workhours view modal for selected date
 			if m.WorkhoursViewModal == nil {
@@ -217,7 +235,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Route messages to modal if open
+	// Route messages to modals if open
+	if m.ReportGeneratorModal != nil {
+		updatedModal, cmd := m.ReportGeneratorModal.Update(msg)
+		m.ReportGeneratorModal = &updatedModal
+		return m, cmd
+	}
+
 	if m.WorkhoursViewModal != nil {
 		_, cmd := m.WorkhoursViewModal.Update(msg)
 		return m, cmd
@@ -227,7 +251,11 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m CalendarModel) View() string {
-	// Show modal if open (replaces calendar view)
+	// Show modals if open (replaces calendar view)
+	if m.ReportGeneratorModal != nil {
+		return m.ReportGeneratorModal.View(m.Width, m.Height)
+	}
+
 	if m.WorkhoursViewModal != nil {
 		return m.WorkhoursViewModal.View(m.Width, m.Height)
 	}
@@ -375,9 +403,9 @@ func (m CalendarModel) View() string {
 	if len(m.YankedWorkhours) > 0 {
 		// Show paste hint when workhours are copied
 		copyCount := fmt.Sprintf("%d copied", len(m.YankedWorkhours))
-		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "v: paste", copyCount, "q: quit"}
+		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "v: paste", copyCount, "g: generate", "q: quit"}
 	} else {
-		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "q: quit"}
+		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "g: generate", "q: quit"}
 	}
 	helpText := render.RenderHelpText(helpItems...)
 	sb.WriteString("\n")
