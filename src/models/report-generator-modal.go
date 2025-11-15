@@ -33,6 +33,9 @@ type ReportGeneratorModalClosedMsg struct{}
 type ReportGeneratedMsg struct {
 	FilePath string
 }
+type ReportGenerationFailedMsg struct {
+	Error error
+}
 
 func NewReportGeneratorModal(viewMonth, viewYear int) *ReportGeneratorModal {
 	return &ReportGeneratorModal{
@@ -131,7 +134,7 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 		case int(ReportTypeOdooCSV):
 			filePath, err := generateOdooCSVReport(m.ViewMonth, m.ViewYear)
 			if err != nil {
-				return ReportGeneratorModalClosedMsg{}
+				return ReportGenerationFailedMsg{Error: err}
 			}
 			return ReportGeneratedMsg{FilePath: filePath}
 		default:

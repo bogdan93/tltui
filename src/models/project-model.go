@@ -110,13 +110,17 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Save to database
 		err := CreateProject(newProject)
 		if err != nil {
-			// TODO: Handle error properly
 			m.ProjectCreateModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
 		}
 
 		// Reload from database
-		m.Projects, _ = GetAllProjectsFromDB()
+		projects, err := GetAllProjectsFromDB()
+		if err != nil {
+			m.ProjectCreateModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		}
+		m.Projects = projects
 		m.NextID++
 
 		// Update table
@@ -145,13 +149,17 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := UpdateProject(updatedProject)
 		if err != nil {
-			// TODO: Handle error properly
 			m.ProjectEditModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
 		}
 
 		// Reload from database
-		m.Projects, _ = GetAllProjectsFromDB()
+		projects, err := GetAllProjectsFromDB()
+		if err != nil {
+			m.ProjectEditModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		}
+		m.Projects = projects
 
 		rows := []table.Row{}
 		for _, p := range m.Projects {
@@ -173,13 +181,17 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Delete from database
 		err := DeleteProject(msg.ProjectID)
 		if err != nil {
-			// TODO: Handle error properly
 			m.ProjectDeleteModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
 		}
 
 		// Reload from database
-		m.Projects, _ = GetAllProjectsFromDB()
+		projects, err := GetAllProjectsFromDB()
+		if err != nil {
+			m.ProjectDeleteModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		}
+		m.Projects = projects
 
 		// Update table
 		rows := []table.Row{}

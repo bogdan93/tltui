@@ -22,10 +22,7 @@ func RenderModal(termWidth, termHeight int, modalWidth, modalHeight int, content
 		modalHeight = termHeight - 4
 	}
 
-	// Create the modal style with border
 	modalStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")). // Purple border
 		Padding(1, 2).
 		Width(modalWidth).
 		Height(modalHeight)

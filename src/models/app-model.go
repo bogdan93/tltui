@@ -37,6 +37,9 @@ type AppModel struct {
 	Calendar        CalendarModel
 	Projects        ProjectsModel
 	WorkhourDetails WorkhourDetailsModel
+
+	// Notification system
+	Notification *Notification
 }
 
 func (m AppModel) Init() tea.Cmd {
@@ -47,6 +50,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+
+	case ShowNotificationMsg:
+		// Show notification and set timeout to clear it
+		m.Notification = &Notification{
+			Message: msg.Message,
+			Type:    msg.Type,
+		}
+		return m, StartNotificationTimeout(3 * time.Second)
+
+	case ClearNotificationMsg:
+		// Clear notification
+		m.Notification = nil
+		return m, nil
 
 	case tea.WindowSizeMsg:
 		// Forward window size to all models
@@ -68,6 +84,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Check if any modal is open
 		isModalOpen := m.Calendar.WorkhoursViewModal != nil ||
 			m.Calendar.ReportGeneratorModal != nil ||
+			m.Calendar.ShowHelp ||
 			m.Projects.ProjectEditModal != nil ||
 			m.Projects.ProjectCreateModal != nil ||
 			m.Projects.ProjectDeleteModal != nil ||
@@ -153,5 +170,12 @@ func (m AppModel) View() string {
 		return ""
 	}
 
-	return render.RenderPageLayoutWithTabs(activeTabIndex, content)
+	mainView := render.RenderPageLayoutWithTabs(activeTabIndex, content)
+
+	// Overlay notification bar at the top if present
+	if m.Notification != nil {
+		return RenderNotificationOverlay(m.Notification, mainView)
+	}
+
+	return mainView
 }

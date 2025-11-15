@@ -112,13 +112,17 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Save to database
 		err := CreateWorkhourDetails(newWorkhourDetail)
 		if err != nil {
-			// TODO: Handle error properly
 			m.WorkhourDetailsCreateModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
 		}
 
 		// Reload from database
-		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
+		details, err := GetAllWorkhourDetailsFromDB()
+		if err != nil {
+			m.WorkhourDetailsCreateModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		}
+		m.WorkhourDetails = details
 		m.NextID++
 
 		// Update table
@@ -147,13 +151,17 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Delete from database
 		err := DeleteWorkhourDetails(msg.WorkhourDetailID)
 		if err != nil {
-			// TODO: Handle error properly
 			m.WorkhourDetailsDeleteModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
 		}
 
 		// Reload from database
-		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
+		details, err := GetAllWorkhourDetailsFromDB()
+		if err != nil {
+			m.WorkhourDetailsDeleteModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		}
+		m.WorkhourDetails = details
 
 		// Update table
 		rows := []table.Row{}
@@ -187,13 +195,17 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := UpdateWorkhourDetails(updatedWorkhourDetail)
 		if err != nil {
-			// TODO: Handle error properly
 			m.WorkhourDetailsEditModal = nil
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
 		}
 
 		// Reload from database
-		m.WorkhourDetails, _ = GetAllWorkhourDetailsFromDB()
+		details, err := GetAllWorkhourDetailsFromDB()
+		if err != nil {
+			m.WorkhourDetailsEditModal = nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		}
+		m.WorkhourDetails = details
 
 		rows := []table.Row{}
 		for _, wd := range m.WorkhourDetails {

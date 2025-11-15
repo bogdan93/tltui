@@ -19,6 +19,7 @@ type CalendarModel struct {
 
 	WorkhoursViewModal     *WorkhoursViewModal
 	ReportGeneratorModal   *ReportGeneratorModal
+	ShowHelp               bool // Show help modal
 
 	// Copy/Paste clipboard
 	YankedWorkhours []Workhour // Workhours copied from a day
@@ -51,8 +52,12 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ReportGeneratedMsg:
 		// Report generated successfully, close modal
 		m.ReportGeneratorModal = nil
-		// TODO: Show success message with file path
 		return m, nil
+
+	case ReportGenerationFailedMsg:
+		// Report generation failed, close modal and show error
+		m.ReportGeneratorModal = nil
+		return m, DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
 
 	case WorkhourCreatedMsg:
 		// Add new workhour to the database
@@ -64,8 +69,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		_, err := CreateWorkhour(newWorkhour)
 		if err != nil {
-			// TODO: Handle error properly (could show error message)
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
 		}
 
 		// Update the modal's workhours to show the new entry
@@ -85,8 +89,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := UpdateWorkhour(msg.ID, updatedWorkhour)
 		if err != nil {
-			// TODO: Handle error properly (could show error message)
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
 
 		// Update the modal's workhours to show the updated entry
@@ -100,8 +103,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Delete the workhour from the database
 		err := DeleteWorkhour(msg.ID)
 		if err != nil {
-			// TODO: Handle error properly (could show error message)
-			return m, nil
+			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
 		}
 
 		// Update the modal's workhours to show the updated list
@@ -121,6 +123,22 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Handle help modal
+		if m.ShowHelp {
+			switch msg.String() {
+			case "?", "esc", "q":
+				m.ShowHelp = false
+				return m, nil
+			}
+			return m, nil
+		}
+
+		// Handle help modal toggle when not open
+		if msg.String() == "?" {
+			m.ShowHelp = true
+			return m, nil
+		}
+
 		// Don't handle navigation keys if modal is open
 		if m.WorkhoursViewModal != nil || m.ReportGeneratorModal != nil {
 			break
@@ -186,27 +204,27 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "v":
 			// Paste copied workhours to selected date (replaces existing)
-			if len(m.YankedWorkhours) > 0 {
-				// First, delete all existing workhours for the selected date from database
-				err := DeleteWorkhoursByDate(m.SelectedDate)
-				if err != nil {
-					// TODO: Handle error properly
-					return m, nil
-				}
+			if len(m.YankedWorkhours) == 0 {
+				return m, nil
+			}
 
-				// Then add the copied workhours with the new date to database
-				for _, wh := range m.YankedWorkhours {
-					newWorkhour := Workhour{
-						Date:      m.SelectedDate,
-						DetailsID: wh.DetailsID,
-						ProjectID: wh.ProjectID,
-						Hours:     wh.Hours,
-					}
-					_, err := CreateWorkhour(newWorkhour)
-					if err != nil {
-						// TODO: Handle error properly
-						return m, nil
-					}
+			// First, delete all existing workhours for the selected date from database
+			err := DeleteWorkhoursByDate(m.SelectedDate)
+			if err != nil {
+				return m, DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
+			}
+
+			// Then add the copied workhours with the new date to database
+			for _, wh := range m.YankedWorkhours {
+				newWorkhour := Workhour{
+					Date:      m.SelectedDate,
+					DetailsID: wh.DetailsID,
+					ProjectID: wh.ProjectID,
+					Hours:     wh.Hours,
+				}
+				_, err := CreateWorkhour(newWorkhour)
+				if err != nil {
+					return m, DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
 				}
 			}
 			return m, nil
@@ -251,6 +269,11 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m CalendarModel) View() string {
+	// Show help modal if open
+	if m.ShowHelp {
+		return m.renderHelpModal()
+	}
+
 	// Show modals if open (replaces calendar view)
 	if m.ReportGeneratorModal != nil {
 		return m.ReportGeneratorModal.View(m.Width, m.Height)
@@ -325,7 +348,6 @@ func (m CalendarModel) View() string {
 			// Determine style based on selection and today
 			isToday := m.isSameDay(cellDay, today)
 			isSelected := m.isSameDay(cellDay, m.SelectedDate)
-			isCopied := len(m.YankedWorkhours) > 0 && m.isSameDay(cellDay, m.YankedFromDate)
 			isCurrentMonth := cellDay.Month() == time.Month(m.ViewMonth)
 
 			var cellStyle lipgloss.Style
@@ -345,13 +367,6 @@ func (m CalendarModel) View() string {
 					Bold(true).
 					Foreground(lipgloss.Color("229")).
 					Background(lipgloss.Color("57"))
-			} else if isCopied {
-				// Copied day - green border to indicate clipboard source
-				cellStyle = baseStyle.
-					Bold(true).
-					Foreground(lipgloss.Color("114")). // Green
-					BorderStyle(lipgloss.RoundedBorder()).
-					BorderForeground(lipgloss.Color("114"))
 			} else if isToday {
 				// Today - bold with border
 				cellStyle = baseStyle.
@@ -398,15 +413,8 @@ func (m CalendarModel) View() string {
 	sb.WriteString(lipgloss.JoinVertical(lipgloss.Left, weekRows...))
 	sb.WriteString("\n")
 
-	// Add help text
-	var helpItems []string
-	if len(m.YankedWorkhours) > 0 {
-		// Show paste hint when workhours are copied
-		copyCount := fmt.Sprintf("%d copied", len(m.YankedWorkhours))
-		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "v: paste", copyCount, "g: generate", "q: quit"}
-	} else {
-		helpItems = []string{"←/→: day", "↑/↓: week", "p/n: month", "c: copy", "g: generate", "q: quit"}
-	}
+	// Add minimal help text
+	helpItems := []string{"←/→: day", "↑/↓: week", "enter: view", "?: help"}
 	helpText := render.RenderHelpText(helpItems...)
 	sb.WriteString("\n")
 	sb.WriteString(helpText)
@@ -472,4 +480,60 @@ func (m CalendarModel) getWorkhourDetailsByID(id int) *WorkhourDetails {
 		return nil
 	}
 	return details
+}
+
+// renderHelpModal renders the help modal with keyboard shortcuts
+func (m CalendarModel) renderHelpModal() string {
+	var sb strings.Builder
+
+	title := "Calendar Keyboard Shortcuts"
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("39")).
+		Align(lipgloss.Center)
+
+	sb.WriteString(titleStyle.Render(title))
+	sb.WriteString("\n\n")
+
+	helpItems := [][]string{
+		{"←/h, →/l", "Move selection left/right by one day"},
+		{"↑/k, ↓/j", "Move selection up/down by one week"},
+		{"p", "Previous month"},
+		{"n", "Next month"},
+		{"r", "Reset to current month"},
+		{"c", "Copy workhours from selected day"},
+		{"v", "Paste copied workhours to selected day"},
+		{"g", "Generate report for current month"},
+		{"enter", "View/edit workhours for selected day"},
+		{"?", "Toggle this help"},
+		{"q/esc", "Quit"},
+	}
+
+	keyStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("39")).
+		Bold(true).
+		Width(15)
+
+	descStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	for _, item := range helpItems {
+		sb.WriteString(keyStyle.Render(item[0]))
+		sb.WriteString("  ")
+		sb.WriteString(descStyle.Render(item[1]))
+		sb.WriteString("\n")
+	}
+
+	if len(m.YankedWorkhours) > 0 {
+		sb.WriteString("\n")
+		infoStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("114")).
+			Italic(true)
+		sb.WriteString(infoStyle.Render(fmt.Sprintf("📋 %d workhour(s) copied", len(m.YankedWorkhours))))
+	}
+
+	sb.WriteString("\n\n")
+	sb.WriteString(render.RenderHelpText("?: close help"))
+
+	return render.RenderSimpleModal(m.Width, m.Height, sb.String())
 }
