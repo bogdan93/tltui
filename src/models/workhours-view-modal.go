@@ -101,6 +101,12 @@ func (m *WorkhoursViewModal) updateViewMode(msg tea.Msg) (WorkhoursViewModal, te
 			return *m, tea.Batch(
 				dispatchWorkhoursViewModalClosedMsg(),
 			)
+		case "d":
+			// Switch to delete mode if there are workhours
+			if len(m.Workhours) > 0 {
+				m.Mode = ModeDelete
+				return *m, nil
+			}
 		case "up", "k":
 			// Navigate workhour selection up
 			if len(m.Workhours) > 0 {
@@ -244,7 +250,28 @@ func (m *WorkhoursViewModal) updateEditMode(msg tea.Msg) (WorkhoursViewModal, te
 }
 
 func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, tea.Cmd) {
-	// TODO: Implement delete mode
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "y", "Y", "enter":
+			// Confirm delete
+			if m.SelectedWorkhourIndex >= 0 && m.SelectedWorkhourIndex < len(m.Workhours) {
+				m.Mode = ModeView
+				return *m, tea.Batch(
+					dispatchWorkhourDeletedMsg(m.SelectedWorkhourIndex, m.Date),
+				)
+			}
+			// Invalid selection, just return to view mode
+			m.Mode = ModeView
+			return *m, nil
+
+		case "n", "N", "esc":
+			// Cancel delete
+			m.Mode = ModeView
+			return *m, nil
+		}
+	}
+
 	return *m, nil
 }
 
@@ -504,7 +531,7 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	sb.WriteString(totalStyle.Render(fmt.Sprintf("%sh", totalHoursStr)))
 
 	sb.WriteString("\n")
-	sb.WriteString(helpStyle.Render("n: new • e/Enter: edit • ↑/↓: select • ESC: close"))
+	sb.WriteString(helpStyle.Render("n: new • e/Enter: edit • d: delete • ↑/↓: select • ESC: close"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
@@ -746,8 +773,102 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 }
 
 func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
-	// TODO: Implement delete mode view
-	return ""
+	if m.SelectedWorkhourIndex < 0 || m.SelectedWorkhourIndex >= len(m.Workhours) {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("196")). // Red for delete
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("241"))
+
+	warningStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("214")). // Orange warning
+		Bold(true)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	helpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("241")).
+		Italic(true)
+
+	// Get the workhour to delete
+	wh := m.Workhours[m.SelectedWorkhourIndex]
+
+	// Find the details
+	var detailsName string
+	var detailsShortName string
+	for _, wd := range m.WorkhourDetails {
+		if wd.ID == wh.DetailsID {
+			detailsName = wd.Name
+			detailsShortName = wd.ShortName
+			break
+		}
+	}
+
+	// Find the project
+	var projectName string
+	for _, p := range m.Projects {
+		if p.ID == wh.ProjectID {
+			projectName = p.Name
+			break
+		}
+	}
+
+	// Format hours
+	hoursStr := fmt.Sprintf("%.1f", wh.Hours)
+	if wh.Hours == float64(int(wh.Hours)) {
+		hoursStr = fmt.Sprintf("%d", int(wh.Hours))
+	}
+
+	// Title
+	sb.WriteString(titleStyle.Render("⚠ Delete Work Hours"))
+	sb.WriteString("\n\n")
+
+	// Warning
+	sb.WriteString(warningStyle.Render("Are you sure you want to delete this entry?"))
+	sb.WriteString("\n\n")
+
+	// Date
+	dateStr := m.Date.Format("Monday, January 2, 2006")
+	sb.WriteString(labelStyle.Render("Date: "))
+	sb.WriteString(valueStyle.Render(dateStr))
+	sb.WriteString("\n\n")
+
+	// Type
+	sb.WriteString(labelStyle.Render("Type: "))
+	sb.WriteString(valueStyle.Render(fmt.Sprintf("%s %s", detailsShortName, detailsName)))
+	sb.WriteString("\n\n")
+
+	// Project
+	if projectName != "" {
+		sb.WriteString(labelStyle.Render("Project: "))
+		sb.WriteString(valueStyle.Render(projectName))
+		sb.WriteString("\n\n")
+	}
+
+	// Hours
+	sb.WriteString(labelStyle.Render("Hours: "))
+	sb.WriteString(valueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
+	sb.WriteString("\n\n")
+
+	// Final warning
+	warningStyle2 := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("196")).
+		Bold(true)
+	sb.WriteString(warningStyle2.Render("This action cannot be undone!"))
+	sb.WriteString("\n\n")
+
+	sb.WriteString(helpStyle.Render("Y/Enter: confirm delete • N/ESC: cancel"))
+
+	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
 func dispatchWorkhoursViewModalClosedMsg() tea.Cmd {
@@ -771,6 +892,11 @@ type WorkhourEditedMsg struct {
 	Hours     float64
 }
 
+type WorkhourDeletedMsg struct {
+	Index int       // Index in day's Workhours array
+	Date  time.Time // Date to identify which day
+}
+
 func dispatchWorkhourCreatedMsg(date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourCreatedMsg{
@@ -790,6 +916,15 @@ func dispatchWorkhourEditedMsg(index int, date time.Time, detailsID int, project
 			DetailsID: detailsID,
 			ProjectID: projectID,
 			Hours:     hours,
+		}
+	}
+}
+
+func dispatchWorkhourDeletedMsg(index int, date time.Time) tea.Cmd {
+	return func() tea.Msg {
+		return WorkhourDeletedMsg{
+			Index: index,
+			Date:  date,
 		}
 	}
 }

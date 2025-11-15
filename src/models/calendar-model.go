@@ -86,6 +86,35 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
+	case WorkhourDeletedMsg:
+		// Find and delete the workhour
+		dayWorkhours := m.getWorkhoursForDate(msg.Date)
+		if msg.Index >= 0 && msg.Index < len(dayWorkhours) {
+			// Find this workhour in the main array and delete it
+			targetWh := dayWorkhours[msg.Index]
+			for i := range m.Workhours {
+				if m.Workhours[i].Date.Equal(targetWh.Date) &&
+					m.Workhours[i].DetailsID == targetWh.DetailsID &&
+					m.Workhours[i].ProjectID == targetWh.ProjectID &&
+					m.Workhours[i].Hours == targetWh.Hours {
+					// Delete the workhour by removing it from the slice
+					m.Workhours = append(m.Workhours[:i], m.Workhours[i+1:]...)
+					break
+				}
+			}
+
+			// Update the modal's workhours to show the updated list
+			if m.WorkhoursViewModal != nil {
+				m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+				// Adjust selected index if needed
+				if m.WorkhoursViewModal.SelectedWorkhourIndex >= len(m.WorkhoursViewModal.Workhours) && len(m.WorkhoursViewModal.Workhours) > 0 {
+					m.WorkhoursViewModal.SelectedWorkhourIndex = len(m.WorkhoursViewModal.Workhours) - 1
+				}
+			}
+		}
+
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
