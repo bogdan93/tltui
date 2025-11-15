@@ -18,6 +18,9 @@ type CalendarModel struct {
 	ViewYear        int // Year being viewed
 	Workhours       []Workhour
 	WorkhourDetails []WorkhourDetails
+	Projects        []Project
+
+	WorkhoursViewModal *WorkhoursViewModal
 }
 
 func NewCalendarModel() CalendarModel {
@@ -35,12 +38,21 @@ func (m CalendarModel) Init() tea.Cmd {
 
 func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case WorkhoursViewModalClosedMsg:
+		m.WorkhoursViewModal = nil
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
 		return m, nil
 
 	case tea.KeyMsg:
+		// Don't handle navigation keys if modal is open
+		if m.WorkhoursViewModal != nil {
+			break
+		}
+
 		switch msg.String() {
 		case "left", "h":
 			// Move selection left one day
@@ -92,13 +104,37 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Reset to current month
 			m.ResetToCurrentMonth()
 			return m, nil
+
+		case "enter":
+			// Open workhours view modal for selected date
+			if m.WorkhoursViewModal == nil {
+				workhours := m.getWorkhoursForDate(m.SelectedDate)
+				m.WorkhoursViewModal = NewWorkhoursViewModal(
+					m.SelectedDate,
+					workhours,
+					m.WorkhourDetails,
+					m.Projects,
+				)
+				return m, nil
+			}
 		}
+	}
+
+	// Route messages to modal if open
+	if m.WorkhoursViewModal != nil {
+		_, cmd := m.WorkhoursViewModal.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
 }
 
 func (m CalendarModel) View() string {
+	// Show modal if open (replaces calendar view)
+	if m.WorkhoursViewModal != nil {
+		return m.WorkhoursViewModal.View(m.Width, m.Height)
+	}
+
 	var sb strings.Builder
 
 	// Calculate cell width based on available width

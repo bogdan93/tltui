@@ -24,10 +24,12 @@ func initModel() models.AppModel {
 	}
 
 	workhourDetails := models.FetchAllWorkhourDetails()
+	projects := models.FetchAllProjects()
 
 	calendar := models.NewCalendarModel()
 	calendar.Workhours = workhours
 	calendar.WorkhourDetails = workhourDetails
+	calendar.Projects = projects
 
 	return models.AppModel{
 		Mode:            models.ModeViewCalendar,

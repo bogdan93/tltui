@@ -68,7 +68,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Check if any modal is open
-		isModalOpen := m.Projects.ProjectEditModal != nil ||
+		isModalOpen := m.Calendar.WorkhoursViewModal != nil ||
+			m.Projects.ProjectEditModal != nil ||
 			m.Projects.ProjectCreateModal != nil ||
 			m.Projects.ProjectDeleteModal != nil ||
 			m.WorkhourDetails.WorkhourDetailsEditModal != nil ||
