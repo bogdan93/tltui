@@ -64,7 +64,6 @@ func NewWorkhoursViewModal(date time.Time, workhours []Workhour, workhourDetails
 }
 
 func (m *WorkhoursViewModal) Update(msg tea.Msg) (WorkhoursViewModal, tea.Cmd) {
-	// Route to mode-specific update handlers
 	switch m.Mode {
 	case ModeView:
 		return m.updateViewMode(msg)
@@ -84,38 +83,31 @@ func (m *WorkhoursViewModal) updateViewMode(msg tea.Msg) (WorkhoursViewModal, te
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "q":
-			// Close modal
 			return *m, tea.Batch(
 				dispatchWorkhoursViewModalClosedMsg(),
 			)
 		case "n":
-			// Switch to create mode
 			m.initializeCreateMode()
 			return *m, nil
 		case "e", "enter":
-			// Switch to edit mode if there are workhours
 			if len(m.Workhours) > 0 {
 				m.initializeEditMode()
 				return *m, nil
 			}
-			// If no workhours, close modal on enter
 			return *m, tea.Batch(
 				dispatchWorkhoursViewModalClosedMsg(),
 			)
 		case "d":
-			// Switch to delete mode if there are workhours
 			if len(m.Workhours) > 0 {
 				m.Mode = ModeDelete
 				return *m, nil
 			}
 		case "up", "k":
-			// Navigate workhour selection up
 			if len(m.Workhours) > 0 {
 				m.SelectedWorkhourIndex = (m.SelectedWorkhourIndex - 1 + len(m.Workhours)) % len(m.Workhours)
 			}
 			return *m, nil
 		case "down", "j":
-			// Navigate workhour selection down
 			if len(m.Workhours) > 0 {
 				m.SelectedWorkhourIndex = (m.SelectedWorkhourIndex + 1) % len(m.Workhours)
 			}
@@ -134,7 +126,6 @@ func (m *WorkhoursViewModal) updateCreateMode(msg tea.Msg) (WorkhoursViewModal, 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			// Validate and submit
 			return m.submitCreate()
 
 		case "esc":
@@ -196,7 +187,6 @@ func (m *WorkhoursViewModal) updateEditMode(msg tea.Msg) (WorkhoursViewModal, te
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			// Validate and submit
 			return m.submitEdit()
 
 		case "esc":
@@ -282,6 +272,8 @@ func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
 	hoursStr := strings.TrimSpace(m.HoursInput.Value())
 	if hoursStr == "" {
 		m.ErrorMessage = "Hours is required"
+		m.FocusedInput = 2
+		m.updateInputFocus()
 		return *m, nil
 	}
 
@@ -289,34 +281,34 @@ func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
 	_, err := fmt.Sscanf(hoursStr, "%f", &hours)
 	if err != nil || hours <= 0 {
 		m.ErrorMessage = "Hours must be a positive number"
+		m.FocusedInput = 2
+		m.updateInputFocus()
 		return *m, nil
 	}
 
-	// Get selected details ID
 	if len(m.WorkhourDetails) == 0 || m.SelectedDetailsIndex >= len(m.WorkhourDetails) {
 		m.ErrorMessage = "Please select a workhour type"
+		m.FocusedInput = 0
 		return *m, nil
 	}
 	detailsID := m.WorkhourDetails[m.SelectedDetailsIndex].ID
 
-	// Validate project selection (required)
 	if m.SelectedProjectIndex < 0 || m.SelectedProjectIndex >= len(m.Projects) {
 		m.ErrorMessage = "Please select a project"
+		m.FocusedInput = 1
 		return *m, nil
 	}
 	projectID := m.Projects[m.SelectedProjectIndex].ID
 
-	// Get the original workhour to edit
 	if m.SelectedWorkhourIndex < 0 || m.SelectedWorkhourIndex >= len(m.Workhours) {
 		m.ErrorMessage = "Invalid workhour selection"
+		m.FocusedInput = 0
 		return *m, nil
 	}
 
 	workhourID := m.Workhours[m.SelectedWorkhourIndex].ID
 
-	// Clear error and dispatch edit message
-	m.ErrorMessage = ""
-	m.Mode = ModeView // Return to view mode after editing
+	m.Mode = ModeView
 	return *m, tea.Batch(
 		dispatchWorkhourEditedMsg(workhourID, m.Date, detailsID, projectID, hours),
 	)
@@ -327,6 +319,8 @@ func (m *WorkhoursViewModal) submitCreate() (WorkhoursViewModal, tea.Cmd) {
 	hoursStr := strings.TrimSpace(m.HoursInput.Value())
 	if hoursStr == "" {
 		m.ErrorMessage = "Hours is required"
+		m.FocusedInput = 2
+		m.updateInputFocus()
 		return *m, nil
 	}
 
@@ -334,26 +328,26 @@ func (m *WorkhoursViewModal) submitCreate() (WorkhoursViewModal, tea.Cmd) {
 	_, err := fmt.Sscanf(hoursStr, "%f", &hours)
 	if err != nil || hours <= 0 {
 		m.ErrorMessage = "Hours must be a positive number"
+		m.FocusedInput = 2
+		m.updateInputFocus()
 		return *m, nil
 	}
 
-	// Get selected details ID
 	if len(m.WorkhourDetails) == 0 || m.SelectedDetailsIndex >= len(m.WorkhourDetails) {
 		m.ErrorMessage = "Please select a workhour type"
+		m.FocusedInput = 0
 		return *m, nil
 	}
 	detailsID := m.WorkhourDetails[m.SelectedDetailsIndex].ID
 
-	// Validate project selection (required)
 	if m.SelectedProjectIndex < 0 || m.SelectedProjectIndex >= len(m.Projects) {
 		m.ErrorMessage = "Please select a project"
+		m.FocusedInput = 1
 		return *m, nil
 	}
 	projectID := m.Projects[m.SelectedProjectIndex].ID
 
-	// Clear error and dispatch creation message
-	m.ErrorMessage = ""
-	m.Mode = ModeView // Return to view mode after creation
+	m.Mode = ModeView
 	return *m, tea.Batch(
 		dispatchWorkhourCreatedMsg(m.Date, detailsID, projectID, hours),
 	)

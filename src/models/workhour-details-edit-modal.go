@@ -58,21 +58,24 @@ func (m *WorkhourDetailsEditModal) Update(msg tea.Msg) (WorkhourDetailsEditModal
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			// Validate inputs
+			m.ErrorMessage = ""
+
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
 				m.ErrorMessage = "Name is required"
+				m.FocusedInput = 0
+				m.updateInputFocus()
 				return *m, nil
 			}
 
 			shortName := strings.TrimSpace(m.ShortNameInput.Value())
 			if shortName == "" {
+				m.FocusedInput = 0
+				m.updateInputFocus()
 				m.ErrorMessage = "Short name is required"
 				return *m, nil
 			}
 
-			// Clear error and dispatch
-			m.ErrorMessage = ""
 			return *m, tea.Batch(
 				dispatchWorkhourDetailsEditedMsg(m.EditingWorkhourDetailID, name, shortName, m.IsWork),
 			)
@@ -98,9 +101,6 @@ func (m *WorkhourDetailsEditModal) Update(msg tea.Msg) (WorkhourDetailsEditModal
 			}
 		}
 	}
-
-	// Clear error when typing
-	m.ErrorMessage = ""
 
 	// Update text inputs when modal is shown
 	if m.FocusedInput == 0 {

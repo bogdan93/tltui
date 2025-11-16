@@ -53,7 +53,8 @@ func (m *WorkhourDetailsCreateModal) Update(msg tea.Msg) (WorkhourDetailsCreateM
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			// Validate inputs
+			m.ErrorMessage = ""
+
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
 				m.ErrorMessage = "Name is required"
@@ -100,10 +101,6 @@ func (m *WorkhourDetailsCreateModal) Update(msg tea.Msg) (WorkhourDetailsCreateM
 		}
 	}
 
-	// Clear error when typing
-	m.ErrorMessage = ""
-
-	// Update text inputs
 	if m.FocusedInput == 0 {
 		m.NameInput, cmd = m.NameInput.Update(msg)
 		cmds = append(cmds, cmd)

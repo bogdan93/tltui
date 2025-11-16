@@ -51,29 +51,32 @@ func (m *ProjectCreateModal) Update(msg tea.Msg) (ProjectCreateModal, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			// Clear error when typing
 			m.ErrorMessage = ""
 
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
 				m.ErrorMessage = "Project name is required"
+				m.FocusedInput = 0
+				m.updateInputFocus()
 				return *m, nil
 			}
 
 			odooIDStr := strings.TrimSpace(m.OdooIDInput.Value())
 			if odooIDStr == "" {
 				m.ErrorMessage = "Odoo ID is required"
+				m.FocusedInput = 1
+				m.updateInputFocus()
 				return *m, nil
 			}
 
 			odooID, err := strconv.Atoi(odooIDStr)
 			if err != nil || odooID <= 0 {
 				m.ErrorMessage = "Odoo ID must be a positive number"
+				m.FocusedInput = 1
+				m.updateInputFocus()
 				return *m, nil
 			}
 
-			// Clear error and dispatch
-			m.ErrorMessage = ""
 			return *m, tea.Batch(
 				dispatchCreatedMsg(name, odooID),
 			)
