@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/johnfercher/maroto/v2"
 	"github.com/johnfercher/maroto/v2/pkg/components/col"
+	"github.com/johnfercher/maroto/v2/pkg/components/image"
 	"github.com/johnfercher/maroto/v2/pkg/components/row"
 	"github.com/johnfercher/maroto/v2/pkg/components/text"
 	"github.com/johnfercher/maroto/v2/pkg/config"
@@ -42,14 +43,15 @@ type ReportGeneratorModal struct {
 	ViewMonth          int // Month to generate report for
 	ViewYear           int // Year to generate report for
 
-	ShowingInputForm bool                       // True when showing From/To company inputs
-	FromCompanyInput textinput.Model            // "From Company" text input
-	ToCompanyInput   textinput.Model            // "To Company" text input
-	InvoiceNameInput textinput.Model            // "Invoice Name" text input
-	FocusedInput     int                        // 0 = FromCompany, 1 = ToCompany, 2 = InvoiceName, 3+ = checkbox items
-	PreviewStats     *WorkhourStats             // Cached stats for preview display
-	SelectedItems    map[string]map[string]bool // project -> activity -> selected
-	FocusedItemIndex int                        // Index of focused checkbox item in the flattened list
+	ShowingInputForm   bool                       // True when showing From/To company inputs
+	FromCompanyInput   textinput.Model            // "From Company" text input
+	ToCompanyInput     textinput.Model            // "To Company" text input
+	InvoiceNameInput   textinput.Model            // "Invoice Name" text input
+	SignatureImagePath string                     // Path to signature image file
+	FocusedInput       int                        // 0 = FromCompany, 1 = ToCompany, 2 = InvoiceName, 3+ = checkbox items
+	PreviewStats       *WorkhourStats             // Cached stats for preview display
+	SelectedItems      map[string]map[string]bool // project -> activity -> selected
+	FocusedItemIndex   int                        // Index of focused checkbox item in the flattened list
 }
 
 type ReportGeneratorModalClosedMsg struct{}
@@ -58,6 +60,9 @@ type ReportGeneratedMsg struct {
 }
 type ReportGenerationFailedMsg struct {
 	Error error
+}
+type SignatureImageSelectedMsg struct {
+	ImagePath string
 }
 
 func NewReportGeneratorModal(viewMonth, viewYear int) *ReportGeneratorModal {
@@ -249,6 +254,7 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			m.FromCompanyInput.SetValue("")
 			m.ToCompanyInput.SetValue("")
 			m.InvoiceNameInput.SetValue("")
+			m.SignatureImagePath = ""
 			m.FocusedInput = 0
 			m.FocusedItemIndex = -1
 			m.ErrorMessage = ""
@@ -289,7 +295,16 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 				m.toggleCheckboxAtIndex(m.FocusedItemIndex)
 				return m, nil
 			}
+
+		case "s":
+			return m, openImageFileDialog()
 		}
+
+	case SignatureImageSelectedMsg:
+		if msg.ImagePath != "" {
+			m.SignatureImagePath = msg.ImagePath
+		}
+		return m, nil
 	}
 
 	if m.FocusedInput == 0 {
@@ -471,6 +486,20 @@ func (m ReportGeneratorModal) renderInputForm(width, height int) string {
 	sb.WriteString(m.InvoiceNameInput.View())
 	sb.WriteString("\n\n")
 
+	sb.WriteString(labelStyle.Render("Signature Image:"))
+	sb.WriteString("\n")
+	if m.SignatureImagePath != "" {
+		imageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+		sb.WriteString(imageStyle.Render("✓ " + filepath.Base(m.SignatureImagePath)))
+	} else {
+		noImageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		sb.WriteString(noImageStyle.Render("No image selected"))
+	}
+	sb.WriteString("\n")
+	buttonStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+	sb.WriteString(buttonStyle.Render("[Press 's' to select image]"))
+	sb.WriteString("\n\n")
+
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
@@ -484,7 +513,7 @@ func (m ReportGeneratorModal) renderInputForm(width, height int) string {
 		sb.WriteString("\n")
 	}
 
-	helpItems := []string{"↑/↓/j/k: navigate", "space: toggle", "enter: generate", "esc: cancel"}
+	helpItems := []string{"↑/↓/j/k: navigate", "space: toggle", "s: select image", "enter: generate", "esc: cancel"}
 	sb.WriteString(render.RenderHelpText(helpItems...))
 
 	return render.RenderSimpleModal(width, height, sb.String())
@@ -605,7 +634,7 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 			fromCompany := strings.TrimSpace(m.FromCompanyInput.Value())
 			toCompany := strings.TrimSpace(m.ToCompanyInput.Value())
 			invoiceName := strings.TrimSpace(m.InvoiceNameInput.Value())
-			filePath, err := generateMailReport(m.ViewMonth, m.ViewYear, fromCompany, toCompany, invoiceName, m.SelectedItems)
+			filePath, err := generateMailReport(m.ViewMonth, m.ViewYear, fromCompany, toCompany, invoiceName, m.SignatureImagePath, m.SelectedItems)
 			if err != nil {
 				return ReportGenerationFailedMsg{Error: err}
 			}
@@ -757,6 +786,43 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, data, 0644)
+}
+
+func openImageFileDialog() tea.Cmd {
+	return func() tea.Msg {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			homeDir = "/"
+		}
+
+		var cmd *exec.Cmd
+
+		switch {
+		case commandExists("zenity"):
+			cmd = exec.Command("zenity", "--file-selection",
+				"--title=Select Signature Image",
+				"--file-filter=Images | *.png *.jpg *.jpeg *.gif *.bmp",
+				"--filename="+homeDir+"/")
+		case commandExists("kdialog"):
+			cmd = exec.Command("kdialog", "--getopenfilename", homeDir, "*.png *.jpg *.jpeg *.gif *.bmp")
+		case commandExists("osascript"):
+			script := `
+				set imageFile to choose file with prompt "Select Signature Image" of type {"public.image"}
+				return POSIX path of imageFile
+			`
+			cmd = exec.Command("osascript", "-e", script)
+		default:
+			return SignatureImageSelectedMsg{ImagePath: ""}
+		}
+
+		output, err := cmd.Output()
+		if err != nil {
+			return SignatureImageSelectedMsg{ImagePath: ""}
+		}
+
+		imagePath := strings.TrimSpace(string(output))
+		return SignatureImageSelectedMsg{ImagePath: imagePath}
+	}
 }
 
 func dispatchReportGeneratorModalClosedMsg() tea.Cmd {
@@ -948,7 +1014,7 @@ func formatMailReport(
 	return sb.String()
 }
 
-func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, toCompany, invoiceName string, stats WorkhourStats) error {
+func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, toCompany, invoiceName, signatureImagePath string, stats WorkhourStats) error {
 	cfg := config.NewBuilder().
 		WithPageNumber().
 		Build()
@@ -1145,6 +1211,19 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 		}),
 	)
 
+	if signatureImagePath != "" {
+		if _, err := os.Stat(signatureImagePath); err == nil {
+			m.AddRow(30,
+				image.NewFromFileCol(6, signatureImagePath, props.Rect{
+					Center:  false,
+					Left:    0,
+					Top:     0,
+					Percent: 50,
+				}),
+			)
+		}
+	}
+
 	document, err := m.Generate()
 	if err != nil {
 		return fmt.Errorf("failed to generate PDF document: %w", err)
@@ -1158,7 +1237,7 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 	return nil
 }
 
-func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany, invoiceName string, selectedItems map[string]map[string]bool) (string, error) {
+func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany, invoiceName, signatureImagePath string, selectedItems map[string]map[string]bool) (string, error) {
 	startDate := time.Date(viewYear, time.Month(viewMonth), 1, 0, 0, 0, 0, time.Local)
 	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
 
@@ -1206,7 +1285,7 @@ func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany, invoice
 	fileName := fmt.Sprintf("raport_activitate_%s_%d.pdf", strings.ToLower(monthName), viewYear)
 	filePath := filepath.Join(tmpDir, fileName)
 
-	err = generatePDFReport(filePath, viewMonth, viewYear, fromCompany, toCompany, invoiceName, stats)
+	err = generatePDFReport(filePath, viewMonth, viewYear, fromCompany, toCompany, invoiceName, signatureImagePath, stats)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate PDF: %w", err)
 	}
