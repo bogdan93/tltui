@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -20,6 +22,7 @@ type ReportType int
 
 const (
 	ReportTypeOdooCSV ReportType = iota
+	ReportTypeMailReport
 )
 
 type ReportGeneratorModal struct {
@@ -29,6 +32,14 @@ type ReportGeneratorModal struct {
 	ErrorMessage       string
 	ViewMonth          int // Month to generate report for
 	ViewYear           int // Year to generate report for
+
+	ShowingInputForm bool                       // True when showing From/To company inputs
+	FromCompanyInput textinput.Model            // "From Company" text input
+	ToCompanyInput   textinput.Model            // "To Company" text input
+	FocusedInput     int                        // 0 = FromCompany, 1 = ToCompany, 2+ = checkbox items
+	PreviewStats     *WorkhourStats             // Cached stats for preview display
+	SelectedItems    map[string]map[string]bool // project -> activity -> selected
+	FocusedItemIndex int                        // Index of focused checkbox item in the flattened list
 }
 
 type ReportGeneratorModalClosedMsg struct{}
@@ -40,12 +51,29 @@ type ReportGenerationFailedMsg struct {
 }
 
 func NewReportGeneratorModal(viewMonth, viewYear int) *ReportGeneratorModal {
+	fromCompanyInput := textinput.New()
+	fromCompanyInput.Placeholder = "From Company"
+	fromCompanyInput.CharLimit = 64
+	fromCompanyInput.Width = 40
+
+	toCompanyInput := textinput.New()
+	toCompanyInput.Placeholder = "To Company"
+	toCompanyInput.CharLimit = 64
+	toCompanyInput.Width = 40
+
 	return &ReportGeneratorModal{
 		SelectedReportType: 0,
-		ReportTypes:        []string{"Odoo CSV"},
+		ReportTypes:        []string{"Odoo CSV", "Mail Report"},
 		Generating:         false,
 		ViewMonth:          viewMonth,
 		ViewYear:           viewYear,
+		ShowingInputForm:   false,
+		FromCompanyInput:   fromCompanyInput,
+		ToCompanyInput:     toCompanyInput,
+		FocusedInput:       0,
+		PreviewStats:       nil,
+		SelectedItems:      make(map[string]map[string]bool),
+		FocusedItemIndex:   -1,
 	}
 }
 
@@ -56,6 +84,10 @@ func (m ReportGeneratorModal) Init() tea.Cmd {
 func (m ReportGeneratorModal) Update(msg tea.Msg) (ReportGeneratorModal, tea.Cmd) {
 	if m.Generating {
 		return m, nil
+	}
+
+	if m.ShowingInputForm {
+		return m.handleInputForm(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -77,15 +109,248 @@ func (m ReportGeneratorModal) Update(msg tea.Msg) (ReportGeneratorModal, tea.Cmd
 			return m, nil
 
 		case "enter":
+			if m.ReportTypes[m.SelectedReportType] == "Mail Report" {
+			m.ShowingInputForm = true
+			m.FocusedInput = 0
+			m.FocusedItemIndex = -1
+			m.PreviewStats = m.calculatePreviewStats()
+			m.initializeSelectedItems()
+			m.updateInputFocus()
+			return m, nil
+			}
 			m.Generating = true
 			return m, m.generateReport()
+
+		case "o", "O":
+			m.SelectedReportType = 0
+			m.Generating = true
+			return m, m.generateReport()
+
+		case "m", "M":
+			m.SelectedReportType = 1
+			m.ShowingInputForm = true
+			m.FocusedInput = 0
+			m.FocusedItemIndex = -1
+			m.PreviewStats = m.calculatePreviewStats()
+			m.initializeSelectedItems()
+			m.updateInputFocus()
+			return m, nil
 		}
 	}
 
 	return m, nil
 }
 
+func (m *ReportGeneratorModal) initializeSelectedItems() {
+	if m.PreviewStats == nil {
+		return
+	}
+
+	m.SelectedItems = make(map[string]map[string]bool)
+
+	for projectName, activities := range m.PreviewStats.ProjectActivityHours {
+		m.SelectedItems[projectName] = make(map[string]bool)
+		for activityName := range activities {
+			m.SelectedItems[projectName][activityName] = true
+		}
+	}
+}
+
+func (m ReportGeneratorModal) calculatePreviewStats() *WorkhourStats {
+	startDate := time.Date(m.ViewYear, time.Month(m.ViewMonth), 1, 0, 0, 0, 0, time.Local)
+	endDate := time.Date(m.ViewYear, time.Month(m.ViewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
+
+	workhours, err := repository.GetWorkhoursByDateRange(startDate, endDate)
+	if err != nil {
+		return nil
+	}
+
+	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
+	if err != nil {
+		return nil
+	}
+
+	projects, err := repository.GetAllProjectsFromDB()
+	if err != nil {
+		return nil
+	}
+
+	detailsMap := make(map[int]domain.WorkhourDetails)
+	for _, wd := range workhourDetails {
+		detailsMap[wd.ID] = wd
+	}
+
+	projectsMap := make(map[int]domain.Project)
+	for _, p := range projects {
+		projectsMap[p.ID] = p
+	}
+
+	stats := calculateWorkhourStats(workhours, detailsMap, projectsMap)
+	return &stats
+}
+
+func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal, tea.Cmd) {
+	totalCheckboxItems := m.getTotalCheckboxItems()
+	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			m.ErrorMessage = ""
+
+			fromCompany := strings.TrimSpace(m.FromCompanyInput.Value())
+			if fromCompany == "" {
+				m.ErrorMessage = "From Company is required"
+				m.FocusedInput = 0
+				m.updateInputFocus()
+				return m, nil
+			}
+
+			toCompany := strings.TrimSpace(m.ToCompanyInput.Value())
+			if toCompany == "" {
+				m.ErrorMessage = "To Company is required"
+				m.FocusedInput = 1
+				m.updateInputFocus()
+				return m, nil
+			}
+
+			m.ShowingInputForm = false
+			m.Generating = true
+			return m, m.generateReport()
+
+		case "esc":
+			m.ShowingInputForm = false
+			m.FromCompanyInput.SetValue("")
+			m.ToCompanyInput.SetValue("")
+			m.FocusedInput = 0
+			m.FocusedItemIndex = -1
+			m.ErrorMessage = ""
+			return m, nil
+
+		case "tab", "down", "j":
+			if m.FocusedInput < 2 {
+				m.FocusedInput++
+				if m.FocusedInput == 2 && totalCheckboxItems > 0 {
+					m.FocusedItemIndex = 0
+				}
+				m.updateInputFocus()
+			} else {
+				if m.FocusedItemIndex < totalCheckboxItems-1 {
+					m.FocusedItemIndex++
+				}
+			}
+			return m, nil
+
+		case "shift+tab", "up", "k":
+			if m.FocusedInput == 2 && m.FocusedItemIndex > 0 {
+				m.FocusedItemIndex--
+			} else if m.FocusedInput == 2 && m.FocusedItemIndex == 0 {
+				m.FocusedInput = 1
+				m.FocusedItemIndex = -1
+				m.updateInputFocus()
+			} else if m.FocusedInput > 0 {
+				m.FocusedInput--
+				m.updateInputFocus()
+			}
+			return m, nil
+
+		case " ":
+			if m.FocusedInput == 2 && m.FocusedItemIndex >= 0 {
+				m.toggleCheckboxAtIndex(m.FocusedItemIndex)
+			}
+			return m, nil
+		}
+	}
+
+	if m.FocusedInput == 0 {
+		m.FromCompanyInput, cmd = m.FromCompanyInput.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.FocusedInput == 1 {
+		m.ToCompanyInput, cmd = m.ToCompanyInput.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *ReportGeneratorModal) updateInputFocus() {
+	if m.FocusedInput == 0 {
+		m.FromCompanyInput.Focus()
+		m.ToCompanyInput.Blur()
+	} else if m.FocusedInput == 1 {
+		m.FromCompanyInput.Blur()
+		m.ToCompanyInput.Focus()
+	} else {
+		m.FromCompanyInput.Blur()
+		m.ToCompanyInput.Blur()
+	}
+}
+
+func (m ReportGeneratorModal) getTotalCheckboxItems() int {
+	if m.PreviewStats == nil {
+		return 0
+	}
+
+	count := 0
+	for _, activities := range m.PreviewStats.ProjectActivityHours {
+		count += len(activities)
+	}
+	return count
+}
+
+func (m *ReportGeneratorModal) toggleCheckboxAtIndex(index int) {
+	if m.PreviewStats == nil {
+		return
+	}
+
+	type projectHour struct {
+		name  string
+		hours float64
+	}
+	projects := make([]projectHour, 0, len(m.PreviewStats.ProjectHours))
+	for name, hours := range m.PreviewStats.ProjectHours {
+		projects = append(projects, projectHour{name, hours})
+	}
+	sort.Slice(projects, func(i, j int) bool {
+		return projects[i].hours > projects[j].hours
+	})
+
+	currentIndex := 0
+	for _, p := range projects {
+		if activities, ok := m.PreviewStats.ProjectActivityHours[p.name]; ok {
+			type activityHour struct {
+				name  string
+				hours float64
+			}
+			activityList := make([]activityHour, 0, len(activities))
+			for name, hours := range activities {
+				activityList = append(activityList, activityHour{name, hours})
+			}
+			sort.Slice(activityList, func(i, j int) bool {
+				return activityList[i].hours > activityList[j].hours
+			})
+
+			for _, a := range activityList {
+				if currentIndex == index {
+					if m.SelectedItems[p.name] == nil {
+						m.SelectedItems[p.name] = make(map[string]bool)
+					}
+					m.SelectedItems[p.name][a.name] = !m.SelectedItems[p.name][a.name]
+					return
+				}
+				currentIndex++
+			}
+		}
+	}
+}
+
 func (m ReportGeneratorModal) View(width, height int) string {
+	if m.ShowingInputForm {
+		return m.renderInputForm(width, height)
+	}
+
 	var sb strings.Builder
 
 	monthName := time.Month(m.ViewMonth).String()
@@ -108,6 +373,8 @@ func (m ReportGeneratorModal) View(width, height int) string {
 	} else {
 		sb.WriteString("Select report type:\n\n")
 
+		highlightStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
+
 		for i, reportType := range m.ReportTypes {
 			prefix := "  "
 			style := lipgloss.NewStyle()
@@ -117,15 +384,169 @@ func (m ReportGeneratorModal) View(width, height int) string {
 				style = style.Bold(true).Foreground(lipgloss.Color("39"))
 			}
 
-			sb.WriteString(prefix + style.Render(reportType) + "\n")
+			if len(reportType) > 0 {
+				firstLetter := highlightStyle.Render(string(reportType[0]))
+				rest := reportType[1:]
+				sb.WriteString(prefix + firstLetter + style.Render(rest) + "\n")
+			} else {
+				sb.WriteString(prefix + style.Render(reportType) + "\n")
+			}
 		}
 
 		sb.WriteString("\n")
-		helpItems := []string{"↑/↓: select", "enter: generate", "esc/q: cancel"}
+		helpItems := []string{"↑/↓: select", "o/m: quick select", "enter: generate", "esc/q: cancel"}
 		sb.WriteString(render.RenderHelpText(helpItems...))
 	}
 
 	return render.RenderSimpleModal(width, height, sb.String())
+}
+
+func (m ReportGeneratorModal) renderInputForm(width, height int) string {
+	monthName := time.Month(m.ViewMonth).String()
+
+	var sb strings.Builder
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("39")).
+		Align(lipgloss.Center)
+
+	sb.WriteString(titleStyle.Render(fmt.Sprintf("Mail Report - %s %d", monthName, m.ViewYear)))
+	sb.WriteString("\n\n")
+
+	labelStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("241"))
+
+	sb.WriteString(labelStyle.Render("From Company:"))
+	sb.WriteString("\n")
+	sb.WriteString(m.FromCompanyInput.View())
+	sb.WriteString("\n\n")
+
+	sb.WriteString(labelStyle.Render("To Company:"))
+	sb.WriteString("\n")
+	sb.WriteString(m.ToCompanyInput.View())
+	sb.WriteString("\n\n")
+
+	if m.ErrorMessage != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
+		sb.WriteString("\n\n")
+	}
+
+	if m.PreviewStats != nil {
+		sb.WriteString(m.renderStatsPreview())
+		sb.WriteString("\n")
+	}
+
+	helpItems := []string{"↑/↓/j/k: navigate", "space: toggle", "enter: generate", "esc: cancel"}
+	sb.WriteString(render.RenderHelpText(helpItems...))
+
+	return render.RenderSimpleModal(width, height, sb.String())
+}
+
+func (m ReportGeneratorModal) renderStatsPreview() string {
+	if m.PreviewStats == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+	stats := m.PreviewStats
+
+	sectionStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
+	projectStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+	activityStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	hoursStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
+	daysStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	focusedStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
+	focusedDaysStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("240"))
+
+	sb.WriteString(sectionStyle.Render("Summary"))
+	sb.WriteString("\n")
+	sb.WriteString(activityStyle.Render(fmt.Sprintf("  Total Hours: %s", hoursStyle.Render(fmt.Sprintf("%.1f", stats.TotalHours)))))
+	sb.WriteString("\n")
+	sb.WriteString(activityStyle.Render(fmt.Sprintf("  Days Worked: %s", hoursStyle.Render(fmt.Sprintf("%d", stats.TotalDays)))))
+	sb.WriteString("\n\n")
+
+	if len(stats.ProjectActivityHours) > 0 {
+		sb.WriteString(sectionStyle.Render("Hours by Project (Space to toggle)"))
+		sb.WriteString("\n")
+
+		type projectHour struct {
+			name  string
+			hours float64
+		}
+		projects := make([]projectHour, 0, len(stats.ProjectHours))
+		for name, hours := range stats.ProjectHours {
+			projects = append(projects, projectHour{name, hours})
+		}
+		sort.Slice(projects, func(i, j int) bool {
+			return projects[i].hours > projects[j].hours
+		})
+
+		currentIndex := 0
+		for _, p := range projects {
+			projectDays := p.hours / 8.0
+			sb.WriteString(projectStyle.Render(fmt.Sprintf("  %s", p.name)))
+			sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %.1fh", p.hours)))
+			sb.WriteString(daysStyle.Render(fmt.Sprintf("(%.1fd)", projectDays)))
+			sb.WriteString("\n")
+
+			if activities, ok := stats.ProjectActivityHours[p.name]; ok {
+				type activityHour struct {
+					name  string
+					hours float64
+				}
+				activityList := make([]activityHour, 0, len(activities))
+				for name, hours := range activities {
+					activityList = append(activityList, activityHour{name, hours})
+				}
+				sort.Slice(activityList, func(i, j int) bool {
+					return activityList[i].hours > activityList[j].hours
+				})
+
+				for _, a := range activityList {
+					isSelected := false
+					if m.SelectedItems[p.name] != nil {
+						isSelected = m.SelectedItems[p.name][a.name]
+					}
+
+					checkbox := "[ ]"
+					if isSelected {
+						checkbox = "[✓]"
+					}
+
+					isFocused := m.FocusedInput == 2 && m.FocusedItemIndex == currentIndex
+
+					prefix := "    "
+					if isFocused {
+						prefix = "  ▶ "
+					}
+
+					activityDays := a.hours / 8.0
+
+					line := fmt.Sprintf("%s%s %s", prefix, checkbox, a.name)
+
+					if isFocused {
+						sb.WriteString(focusedStyle.Render(line))
+						sb.WriteString(focusedStyle.Render(fmt.Sprintf(" %.1fh", a.hours)))
+						sb.WriteString(focusedDaysStyle.Render(fmt.Sprintf("(%.1fd)", activityDays)))
+					} else {
+						sb.WriteString(activityStyle.Render(line))
+						sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %.1fh", a.hours)))
+						sb.WriteString(daysStyle.Render(fmt.Sprintf("(%.1fd)", activityDays)))
+					}
+					sb.WriteString("\n")
+
+					currentIndex++
+				}
+			}
+		}
+	}
+
+	return sb.String()
 }
 
 func (m ReportGeneratorModal) generateReport() tea.Cmd {
@@ -133,6 +554,14 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 		switch m.SelectedReportType {
 		case int(ReportTypeOdooCSV):
 			filePath, err := generateOdooCSVReport(m.ViewMonth, m.ViewYear)
+			if err != nil {
+				return ReportGenerationFailedMsg{Error: err}
+			}
+			return ReportGeneratedMsg{FilePath: filePath}
+		case int(ReportTypeMailReport):
+			fromCompany := strings.TrimSpace(m.FromCompanyInput.Value())
+			toCompany := strings.TrimSpace(m.ToCompanyInput.Value())
+			filePath, err := generateMailReport(m.ViewMonth, m.ViewYear, fromCompany, toCompany, m.SelectedItems)
 			if err != nil {
 				return ReportGenerationFailedMsg{Error: err}
 			}
@@ -145,7 +574,6 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 
 func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 	startDate := time.Date(viewYear, time.Month(viewMonth), 1, 0, 0, 0, 0, time.Local)
-	// Last day of month: first day of next month minus one day
 	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
 
 	workhours, err := repository.GetWorkhoursByDateRange(startDate, endDate)
@@ -194,12 +622,12 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 	for _, wh := range workhours {
 		details, ok := detailsMap[wh.DetailsID]
 		if !ok {
-			continue // Skip if details not found
+			continue
 		}
 
 		project, ok := projectsMap[wh.ProjectID]
 		if !ok {
-			continue // Skip if project not found
+			continue
 		}
 
 		row := []string{
@@ -257,7 +685,6 @@ func openFileSaveDialog(sourceFile string) (string, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		// User cancelled or error - keep temp file
 		return sourceFile, nil
 	}
 
@@ -292,4 +719,300 @@ func dispatchReportGeneratorModalClosedMsg() tea.Cmd {
 	return func() tea.Msg {
 		return ReportGeneratorModalClosedMsg{}
 	}
+}
+
+type WorkhourStats struct {
+	TotalHours           float64
+	TotalDays            int
+	AveragePerDay        float64
+	ProjectHours         map[string]float64            // project name -> hours
+	ActivityHours        map[string]float64            // activity name -> hours
+	ProjectActivityHours map[string]map[string]float64 // project name -> activity name -> hours
+	DailyBreakdown       map[string][]WorkhourEntry    // date -> list of entries
+}
+
+type WorkhourEntry struct {
+	ProjectName  string
+	ActivityName string
+	Hours        float64
+}
+
+func calculateWorkhourStats(
+	workhours []domain.Workhour,
+	detailsMap map[int]domain.WorkhourDetails,
+	projectsMap map[int]domain.Project,
+) WorkhourStats {
+	stats := WorkhourStats{
+		ProjectHours:         make(map[string]float64),
+		ActivityHours:        make(map[string]float64),
+		ProjectActivityHours: make(map[string]map[string]float64),
+		DailyBreakdown:       make(map[string][]WorkhourEntry),
+	}
+
+	daysWorked := make(map[string]bool)
+
+	for _, wh := range workhours {
+		stats.TotalHours += wh.Hours
+
+		dateStr := repository.DateToString(wh.Date)
+		daysWorked[dateStr] = true
+
+		var projectName, activityName string
+
+		if project, ok := projectsMap[wh.ProjectID]; ok {
+			projectName = project.Name
+			stats.ProjectHours[projectName] += wh.Hours
+		}
+
+		if details, ok := detailsMap[wh.DetailsID]; ok {
+			activityName = details.Name
+			stats.ActivityHours[activityName] += wh.Hours
+		}
+
+		if projectName != "" && activityName != "" {
+			if stats.ProjectActivityHours[projectName] == nil {
+				stats.ProjectActivityHours[projectName] = make(map[string]float64)
+			}
+			stats.ProjectActivityHours[projectName][activityName] += wh.Hours
+		}
+
+		entry := WorkhourEntry{
+			Hours:        wh.Hours,
+			ProjectName:  projectName,
+			ActivityName: activityName,
+		}
+		stats.DailyBreakdown[dateStr] = append(stats.DailyBreakdown[dateStr], entry)
+	}
+
+	stats.TotalDays = len(daysWorked)
+	if stats.TotalDays > 0 {
+		stats.AveragePerDay = stats.TotalHours / float64(stats.TotalDays)
+	}
+
+	return stats
+}
+
+func formatMailReport(
+	viewMonth, viewYear int,
+	fromCompany, toCompany string,
+	stats WorkhourStats,
+) string {
+	monthName := time.Month(viewMonth).String()
+	currentTime := time.Now().Format("January 2, 2006 at 3:04 PM")
+
+	var sb strings.Builder
+
+	sb.WriteString(strings.Repeat("=", 70))
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("WORKHOUR REPORT - %s %d\n", monthName, viewYear))
+	sb.WriteString(strings.Repeat("=", 70))
+	sb.WriteString("\n\n")
+
+	if fromCompany != "" {
+		sb.WriteString(fmt.Sprintf("From: %s\n", fromCompany))
+	}
+	if toCompany != "" {
+		sb.WriteString(fmt.Sprintf("To: %s\n", toCompany))
+	}
+	sb.WriteString(fmt.Sprintf("Date: %s\n", currentTime))
+	sb.WriteString("\n")
+	sb.WriteString(strings.Repeat("-", 70))
+	sb.WriteString("\n\n")
+
+	sb.WriteString("SUMMARY\n")
+	sb.WriteString(strings.Repeat("-", 70))
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("Total Work Hours:     %.1f hours\n", stats.TotalHours))
+	sb.WriteString(fmt.Sprintf("Total Days Worked:    %d days\n", stats.TotalDays))
+	sb.WriteString(fmt.Sprintf("Average Hours/Day:    %.1f hours\n", stats.AveragePerDay))
+	sb.WriteString("\n\n")
+
+	if len(stats.ProjectHours) > 0 {
+		sb.WriteString("BREAKDOWN BY PROJECT\n")
+		sb.WriteString(strings.Repeat("-", 70))
+		sb.WriteString("\n")
+
+		projectNames := make([]string, 0, len(stats.ProjectHours))
+		for name := range stats.ProjectHours {
+			projectNames = append(projectNames, name)
+		}
+		sort.Strings(projectNames)
+
+		for _, projectName := range projectNames {
+			hours := stats.ProjectHours[projectName]
+			percentage := (hours / stats.TotalHours) * 100
+			sb.WriteString(fmt.Sprintf("%-40s %8.1f hours (%5.1f%%)\n", projectName, hours, percentage))
+		}
+		sb.WriteString("\n\n")
+	}
+
+	if len(stats.ActivityHours) > 0 {
+		sb.WriteString("BREAKDOWN BY ACTIVITY TYPE\n")
+		sb.WriteString(strings.Repeat("-", 70))
+		sb.WriteString("\n")
+
+		activityNames := make([]string, 0, len(stats.ActivityHours))
+		for name := range stats.ActivityHours {
+			activityNames = append(activityNames, name)
+		}
+		sort.Strings(activityNames)
+
+		for _, activityName := range activityNames {
+			hours := stats.ActivityHours[activityName]
+			percentage := (hours / stats.TotalHours) * 100
+			sb.WriteString(fmt.Sprintf("%-40s %8.1f hours (%5.1f%%)\n", activityName, hours, percentage))
+		}
+		sb.WriteString("\n\n")
+	}
+
+	sb.WriteString("DAILY BREAKDOWN\n")
+	sb.WriteString(strings.Repeat("-", 70))
+	sb.WriteString("\n")
+
+	dates := make([]string, 0, len(stats.DailyBreakdown))
+	for date := range stats.DailyBreakdown {
+		dates = append(dates, date)
+	}
+	sort.Strings(dates)
+
+	for _, dateStr := range dates {
+		entries := stats.DailyBreakdown[dateStr]
+
+		parsedDate, _ := time.Parse("2006-01-02", dateStr)
+		dayOfWeek := parsedDate.Format("Monday")
+
+		dailyTotal := 0.0
+		for _, entry := range entries {
+			dailyTotal += entry.Hours
+		}
+
+		sb.WriteString(fmt.Sprintf("%s - %s: %.1f hours\n", dateStr, dayOfWeek, dailyTotal))
+
+		for _, entry := range entries {
+			sb.WriteString(fmt.Sprintf("  - %s / %s: %.1f hours\n",
+				entry.ProjectName, entry.ActivityName, entry.Hours))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(strings.Repeat("=", 70))
+	sb.WriteString("\n")
+	sb.WriteString(fmt.Sprintf("Generated on %s\n", currentTime))
+	sb.WriteString(strings.Repeat("=", 70))
+	sb.WriteString("\n")
+
+	return sb.String()
+}
+
+func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany string, selectedItems map[string]map[string]bool) (string, error) {
+	startDate := time.Date(viewYear, time.Month(viewMonth), 1, 0, 0, 0, 0, time.Local)
+	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
+
+	workhours, err := repository.GetWorkhoursByDateRange(startDate, endDate)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch workhours: %w", err)
+	}
+
+	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch workhour details: %w", err)
+	}
+
+	projects, err := repository.GetAllProjectsFromDB()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch projects: %w", err)
+	}
+
+	detailsMap := make(map[int]domain.WorkhourDetails)
+	for _, wd := range workhourDetails {
+		detailsMap[wd.ID] = wd
+	}
+
+	projectsMap := make(map[int]domain.Project)
+	for _, p := range projects {
+		projectsMap[p.ID] = p
+	}
+
+	filteredWorkhours := make([]domain.Workhour, 0)
+	for _, wh := range workhours {
+		project, projectOk := projectsMap[wh.ProjectID]
+		details, detailsOk := detailsMap[wh.DetailsID]
+
+		if projectOk && detailsOk {
+			if selectedItems[project.Name] != nil && selectedItems[project.Name][details.Name] {
+				filteredWorkhours = append(filteredWorkhours, wh)
+			}
+		}
+	}
+
+	stats := calculateWorkhourStats(filteredWorkhours, detailsMap, projectsMap)
+
+	reportContent := formatMailReport(viewMonth, viewYear, fromCompany, toCompany, stats)
+
+	tmpDir := os.TempDir()
+	monthName := time.Month(viewMonth).String()
+	fileName := fmt.Sprintf("mail_report_%s_%d.txt", strings.ToLower(monthName), viewYear)
+	filePath := filepath.Join(tmpDir, fileName)
+
+	err = os.WriteFile(filePath, []byte(reportContent), 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write report file: %w", err)
+	}
+
+	savePath, err := openMailReportSaveDialog(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open save dialog: %w", err)
+	}
+
+	if savePath != filePath {
+		err = copyFile(filePath, savePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to save report: %w", err)
+		}
+		os.Remove(filePath)
+	}
+
+	return savePath, nil
+}
+
+func openMailReportSaveDialog(sourceFile string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	defaultFileName := filepath.Base(sourceFile)
+	defaultPath := filepath.Join(homeDir, defaultFileName)
+
+	var cmd *exec.Cmd
+
+	switch {
+	case commandExists("zenity"):
+		cmd = exec.Command("zenity", "--file-selection", "--save", "--confirm-overwrite",
+			"--filename="+defaultPath,
+			"--title=Save Mail Report")
+	case commandExists("kdialog"):
+		cmd = exec.Command("kdialog", "--getsavefilename", defaultPath, "*.txt")
+	case commandExists("osascript"):
+		script := fmt.Sprintf(`
+			set defaultPath to POSIX file "%s"
+			set saveFile to choose file name with prompt "Save Mail Report" default name "%s" default location (path to home folder)
+			return POSIX path of saveFile
+		`, defaultPath, defaultFileName)
+		cmd = exec.Command("osascript", "-e", script)
+	default:
+		return sourceFile, nil
+	}
+
+	output, err := cmd.Output()
+	if err != nil {
+		return sourceFile, nil
+	}
+
+	targetPath := strings.TrimSpace(string(output))
+	if targetPath == "" {
+		return sourceFile, nil
+	}
+
+	return targetPath, nil
 }

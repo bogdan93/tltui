@@ -16,12 +16,12 @@ import (
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("214")). // Orange for edit
+			Foreground(lipgloss.Color("214")). 
 			MarginBottom(1)
 
 	dateStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("86")). // Cyan
+			Foreground(lipgloss.Color("86")).
 			MarginBottom(1)
 
 	labelStyle = lipgloss.NewStyle().
@@ -49,7 +49,7 @@ var (
 
 	totalStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("114")). // Green
+			Foreground(lipgloss.Color("114")). 
 			MarginTop(1)
 
 	selectedStyle = lipgloss.NewStyle().
