@@ -801,10 +801,10 @@ func openImageFileDialog() tea.Cmd {
 		case commandExists("zenity"):
 			cmd = exec.Command("zenity", "--file-selection",
 				"--title=Select Signature Image",
-				"--file-filter=Images | *.png *.jpg *.jpeg *.gif *.bmp",
+				"--file-filter=Images | *.png *.jpg *.jpeg",
 				"--filename="+homeDir+"/")
 		case commandExists("kdialog"):
-			cmd = exec.Command("kdialog", "--getopenfilename", homeDir, "*.png *.jpg *.jpeg *.gif *.bmp")
+			cmd = exec.Command("kdialog", "--getopenfilename", homeDir, "*.png *.jpg *.jpeg")
 		case commandExists("osascript"):
 			script := `
 				set imageFile to choose file with prompt "Select Signature Image" of type {"public.image"}
