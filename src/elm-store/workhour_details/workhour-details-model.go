@@ -1,7 +1,9 @@
-package models
+package workhour_details
 
 import (
 	"fmt"
+	"tltui/src/common"
+	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
@@ -21,7 +23,7 @@ type WorkhourDetailsModel struct {
 
 	WorkhourDetailsTable    table.Model
 	WorkhourDetailsViewport viewport.Model
-	WorkhourDetails         []WorkhourDetails
+	WorkhourDetails         []domain.WorkhourDetails
 	NextID                  int // Track next available ID for new workhour details
 }
 
@@ -32,7 +34,7 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		// Fallback to empty if error
-		workhourDetails = []WorkhourDetails{}
+		workhourDetails = []domain.WorkhourDetails{}
 	}
 	m.WorkhourDetails = workhourDetails
 
@@ -103,7 +105,7 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case WorkhourDetailsCreatedMsg:
 		// Create new workhour detail with next available ID
-		newWorkhourDetail := WorkhourDetails{
+		newWorkhourDetail := domain.WorkhourDetails{
 			ID:        m.NextID,
 			Name:      msg.Name,
 			ShortName: msg.ShortName,
@@ -114,14 +116,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.CreateWorkhourDetails(newWorkhourDetail)
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
 		}
 
 		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
 		m.NextID++
@@ -153,14 +155,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
 		}
 
 		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
 
@@ -188,7 +190,7 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case WorkhourDetailsEditedMsg:
 		// Update in database
-		updatedWorkhourDetail := WorkhourDetails{
+		updatedWorkhourDetail := domain.WorkhourDetails{
 			ID:        msg.WorkhourDetailID,
 			Name:      msg.Name,
 			ShortName: msg.ShortName,
@@ -197,14 +199,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.UpdateWorkhourDetails(updatedWorkhourDetail)
 		if err != nil {
 			m.WorkhourDetailsEditModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
 		}
 
 		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsEditModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
 
@@ -335,7 +337,7 @@ func (m WorkhourDetailsModel) View() string {
 }
 
 // getSelectedWorkhourDetail returns the currently selected workhour detail from the table
-func (m WorkhourDetailsModel) getSelectedWorkhourDetail() *WorkhourDetails {
+func (m WorkhourDetailsModel) getSelectedWorkhourDetail() *domain.WorkhourDetails {
 	cursor := m.WorkhourDetailsTable.Cursor()
 	if cursor >= 0 && cursor < len(m.WorkhourDetails) {
 		return &m.WorkhourDetails[cursor]

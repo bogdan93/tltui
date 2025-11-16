@@ -1,9 +1,10 @@
-package models
+package calendar
 
 import (
 	"fmt"
 	"strings"
 	"time"
+	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
@@ -23,9 +24,9 @@ const (
 
 type WorkhoursViewModal struct {
 	Date            time.Time
-	Workhours       []Workhour
-	WorkhourDetails []WorkhourDetails
-	Projects        []Project
+	Workhours       []domain.Workhour
+	WorkhourDetails []domain.WorkhourDetails
+	Projects        []domain.Project
 
 	// Mode management
 	Mode ModalMode
@@ -35,7 +36,7 @@ type WorkhoursViewModal struct {
 
 	// Create/Edit mode fields
 	HoursInput             textinput.Model
-	SelectedDetailsIndex   int // Index in WorkhourDetails array
+	SelectedDetailsIndex   int // Index in domain.WorkhourDetails array
 	SelectedProjectIndex   int // Index in Projects array (-1 = None)
 	FocusedInput           int // 0=details, 1=project, 2=hours
 	ErrorMessage           string
@@ -43,7 +44,7 @@ type WorkhoursViewModal struct {
 
 type WorkhoursViewModalClosedMsg struct{}
 
-func NewWorkhoursViewModal(date time.Time, workhours []Workhour, workhourDetails []WorkhourDetails, projects []Project) *WorkhoursViewModal {
+func NewWorkhoursViewModal(date time.Time, workhours []domain.Workhour, workhourDetails []domain.WorkhourDetails, projects []domain.Project) *WorkhoursViewModal {
 	hoursInput := textinput.New()
 	hoursInput.Placeholder = "8.0"
 	hoursInput.CharLimit = 5
@@ -436,7 +437,7 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		sb.WriteString(prefix)
 
 		// Find the workhour details
-		var details *WorkhourDetails
+		var details *domain.WorkhourDetails
 		for _, wd := range m.WorkhourDetails {
 			if wd.ID == wh.DetailsID {
 				details = &wd
@@ -445,7 +446,7 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		}
 
 		// Find the project
-		var project *Project
+		var project *domain.Project
 		if wh.ProjectID > 0 {
 			for _, p := range m.Projects {
 				if p.ID == wh.ProjectID {
@@ -594,8 +595,8 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// Project selection
-	sb.WriteString(labelStyle.Render("Project:"))
+	// domain.Project selection
+	sb.WriteString(labelStyle.Render("domain.Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
@@ -606,7 +607,7 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
-		// Project list
+		// domain.Project list
 		for i, project := range m.Projects {
 			style := valueStyle
 			prefix := "  "
@@ -712,8 +713,8 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// Project selection
-	sb.WriteString(labelStyle.Render("Project:"))
+	// domain.Project selection
+	sb.WriteString(labelStyle.Render("domain.Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
@@ -724,7 +725,7 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
-		// Project list
+		// domain.Project list
 		for i, project := range m.Projects {
 			style := valueStyle
 			prefix := "  "
@@ -845,9 +846,9 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 	sb.WriteString(valueStyle.Render(fmt.Sprintf("%s %s", detailsShortName, detailsName)))
 	sb.WriteString("\n\n")
 
-	// Project
+	// domain.Project
 	if projectName != "" {
-		sb.WriteString(labelStyle.Render("Project: "))
+		sb.WriteString(labelStyle.Render("domain.Project: "))
 		sb.WriteString(valueStyle.Render(projectName))
 		sb.WriteString("\n\n")
 	}

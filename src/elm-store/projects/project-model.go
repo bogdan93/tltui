@@ -1,7 +1,9 @@
-package models
+package projects
 
 import (
 	"fmt"
+	"tltui/src/common"
+	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
@@ -21,7 +23,7 @@ type ProjectsModel struct {
 
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
-	Projects         []Project
+	Projects         []domain.Project
 	NextID           int // Track next available ID for new projects
 }
 
@@ -32,7 +34,7 @@ func NewProjectsModel() ProjectsModel {
 	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		// Fallback to empty if error
-		projects = []Project{}
+		projects = []domain.Project{}
 	}
 	m.Projects = projects
 
@@ -96,7 +98,7 @@ func (m ProjectsModel) Init() tea.Cmd {
 func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case ProjectCreatedMsg:
-		newProject := Project{
+		newProject := domain.Project{
 			ID:     m.NextID,
 			Name:   msg.Name,
 			OdooID: msg.OdooID,
@@ -106,14 +108,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.CreateProject(newProject)
 		if err != nil {
 			m.ProjectCreateModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
 		}
 
 		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectCreateModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
 		m.NextID++
@@ -137,7 +139,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ProjectEditedMsg:
 		// Update in database
-		updatedProject := Project{
+		updatedProject := domain.Project{
 			ID:     msg.ProjectID,
 			Name:   msg.Name,
 			OdooID: msg.OdooID,
@@ -145,14 +147,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.UpdateProject(updatedProject)
 		if err != nil {
 			m.ProjectEditModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
 		}
 
 		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectEditModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
 
@@ -177,14 +179,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		err := repository.DeleteProject(msg.ProjectID)
 		if err != nil {
 			m.ProjectDeleteModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
 		}
 
 		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectDeleteModal = nil
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
 
@@ -310,7 +312,7 @@ func (m ProjectsModel) View() string {
 }
 
 // getSelectedProject returns the currently selected project from the table
-func (m ProjectsModel) getSelectedProject() *Project {
+func (m ProjectsModel) getSelectedProject() *domain.Project {
 	cursor := m.ProjectsTable.Cursor()
 	if cursor >= 0 && cursor < len(m.Projects) {
 		return &m.Projects[cursor]

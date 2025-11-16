@@ -4,17 +4,20 @@ import (
 	"fmt"
 	"os"
 	"tltui/src/domain/repository"
-	"tltui/src/models"
+	store "tltui/src/elm-store"
+	"tltui/src/elm-store/calendar"
+	"tltui/src/elm-store/projects"
+	"tltui/src/elm-store/workhour_details"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func initModel() models.AppModel {
-	return models.AppModel{
-		Mode:            models.ModeViewCalendar,
-		Calendar:        models.NewCalendarModel(),
-		Projects:        models.NewProjectsModel(),
-		WorkhourDetails: models.NewWorkhourDetailsModel(),
+func initModel() store.AppModel {
+	return store.AppModel{
+		Mode:            store.ModeViewCalendar,
+		Calendar:        calendar.NewCalendarModel(),
+		Projects:        projects.NewProjectsModel(),
+		WorkhourDetails: workhour_details.NewWorkhourDetailsModel(),
 	}
 }
 

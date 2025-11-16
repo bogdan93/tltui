@@ -1,9 +1,11 @@
-package models
+package calendar
 
 import (
 	"fmt"
 	"strings"
 	"time"
+	"tltui/src/common"
+	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
@@ -23,7 +25,7 @@ type CalendarModel struct {
 	ShowHelp               bool
 
 	// Copy/Paste clipboard
-	YankedWorkhours []Workhour
+	YankedWorkhours []domain.Workhour
 	YankedFromDate  time.Time 
 }
 
@@ -56,10 +58,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ReportGenerationFailedMsg:
 		m.ReportGeneratorModal = nil
-		return m, DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
+		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
 
 	case WorkhourCreatedMsg:
-		newWorkhour := Workhour{
+		newWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
 			ProjectID: msg.ProjectID,
@@ -67,7 +69,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		_, err := repository.CreateWorkhour(newWorkhour)
 		if err != nil {
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
 		}
 
 		if m.WorkhoursViewModal != nil {
@@ -77,7 +79,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourEditedMsg:
-		updatedWorkhour := Workhour{
+		updatedWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
 			ProjectID: msg.ProjectID,
@@ -85,7 +87,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := repository.UpdateWorkhour(msg.ID, updatedWorkhour)
 		if err != nil {
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
 
 		if m.WorkhoursViewModal != nil {
@@ -97,7 +99,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case WorkhourDeletedMsg:
 		err := repository.DeleteWorkhour(msg.ID)
 		if err != nil {
-			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
+			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
 		}
 
 		if m.WorkhoursViewModal != nil {
@@ -190,11 +192,11 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
-				return m, DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
+				return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
 			}
 
 			for _, wh := range m.YankedWorkhours {
-				newWorkhour := Workhour{
+				newWorkhour := domain.Workhour{
 					Date:      m.SelectedDate,
 					DetailsID: wh.DetailsID,
 					ProjectID: wh.ProjectID,
@@ -202,7 +204,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				_, err := repository.CreateWorkhour(newWorkhour)
 				if err != nil {
-					return m, DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
+					return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
 				}
 			}
 			return m, nil
@@ -210,7 +212,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "d":
 			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
-				return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
+				return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
 			}
 			return m, nil
 
@@ -464,17 +466,17 @@ func (m CalendarModel) isDateInVisibleGrid(date time.Time) bool {
 }
 
 // getWorkhoursForDate returns all workhours for a specific date from the database
-func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
+func (m CalendarModel) getWorkhoursForDate(date time.Time) []domain.Workhour {
 	workhours, err := repository.GetWorkhoursByDate(date)
 	if err != nil {
 		// Return empty slice on error (could log this in the future)
-		return []Workhour{}
+		return []domain.Workhour{}
 	}
 	return workhours
 }
 
-// getWorkhourDetailsByID returns the WorkhourDetails for a given ID from the database
-func (m CalendarModel) getWorkhourDetailsByID(id int) *WorkhourDetails {
+// getWorkhourDetailsByID returns the domain.WorkhourDetails for a given ID from the database
+func (m CalendarModel) getWorkhourDetailsByID(id int) *domain.WorkhourDetails {
 	details, err := repository.GetWorkhourDetailsByID(id)
 	if err != nil {
 		return nil

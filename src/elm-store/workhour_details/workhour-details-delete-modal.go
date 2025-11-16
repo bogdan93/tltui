@@ -1,4 +1,4 @@
-package models
+package workhour_details
 
 import (
 	"fmt"
@@ -9,38 +9,38 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type ProjectDeleteModal struct {
-	ProjectID   int
-	ProjectName string
+type WorkhourDetailsDeleteModal struct {
+	WorkhourDetailID   int
+	WorkhourDetailName string
 }
 
-type ProjectDeletedMsg struct {
-	ProjectID int
+type WorkhourDetailsDeletedMsg struct {
+	WorkhourDetailID int
 }
 
-type ProjectDeleteCanceledMsg struct{}
+type WorkhourDetailsDeleteCanceledMsg struct{}
 
-func NewProjectDeleteModal(projectID int, projectName string) *ProjectDeleteModal {
-	return &ProjectDeleteModal{
-		ProjectID:   projectID,
-		ProjectName: projectName,
+func NewWorkhourDetailsDeleteModal(workhourDetailID int, workhourDetailName string) *WorkhourDetailsDeleteModal {
+	return &WorkhourDetailsDeleteModal{
+		WorkhourDetailID:   workhourDetailID,
+		WorkhourDetailName: workhourDetailName,
 	}
 }
 
-func (m *ProjectDeleteModal) Update(msg tea.Msg) (ProjectDeleteModal, tea.Cmd) {
+func (m *WorkhourDetailsDeleteModal) Update(msg tea.Msg) (WorkhourDetailsDeleteModal, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
 			// Confirm delete
 			return *m, tea.Batch(
-				dispatchProjectDeletedMsg(m.ProjectID),
+				dispatchWorkhourDetailsDeletedMsg(m.WorkhourDetailID),
 			)
 
 		case "n", "N", "esc":
 			// Cancel delete
 			return *m, tea.Batch(
-				dispatchProjectDeleteCanceledMsg(),
+				dispatchWorkhourDetailsDeleteCanceledMsg(),
 			)
 		}
 	}
@@ -48,7 +48,7 @@ func (m *ProjectDeleteModal) Update(msg tea.Msg) (ProjectDeleteModal, tea.Cmd) {
 	return *m, nil
 }
 
-func (m *ProjectDeleteModal) View(Width, Height int) string {
+func (m *WorkhourDetailsDeleteModal) View(Width, Height int) string {
 	var sb strings.Builder
 
 	titleStyle := lipgloss.NewStyle().
@@ -64,18 +64,18 @@ func (m *ProjectDeleteModal) View(Width, Height int) string {
 		Foreground(lipgloss.Color("214")). // Orange warning
 		Bold(true)
 
-	sb.WriteString(titleStyle.Render("⚠ Delete Project"))
+	sb.WriteString(titleStyle.Render("⚠ Delete Workhour Detail"))
 	sb.WriteString("\n\n")
 
-	sb.WriteString(warningStyle.Render("Are you sure you want to delete this project?"))
+	sb.WriteString(warningStyle.Render("Are you sure you want to delete this workhour detail?"))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(labelStyle.Render("ID: "))
-	sb.WriteString(fmt.Sprintf("%d", m.ProjectID))
+	sb.WriteString(fmt.Sprintf("%d", m.WorkhourDetailID))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(labelStyle.Render("Name: "))
-	sb.WriteString(m.ProjectName)
+	sb.WriteString(m.WorkhourDetailName)
 	sb.WriteString("\n\n")
 
 	warningStyle2 := lipgloss.NewStyle().
@@ -92,16 +92,16 @@ func (m *ProjectDeleteModal) View(Width, Height int) string {
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
-func dispatchProjectDeletedMsg(projectID int) tea.Cmd {
+func dispatchWorkhourDetailsDeletedMsg(workhourDetailID int) tea.Cmd {
 	return func() tea.Msg {
-		return ProjectDeletedMsg{
-			ProjectID: projectID,
+		return WorkhourDetailsDeletedMsg{
+			WorkhourDetailID: workhourDetailID,
 		}
 	}
 }
 
-func dispatchProjectDeleteCanceledMsg() tea.Cmd {
+func dispatchWorkhourDetailsDeleteCanceledMsg() tea.Cmd {
 	return func() tea.Msg {
-		return ProjectDeleteCanceledMsg{}
+		return WorkhourDetailsDeleteCanceledMsg{}
 	}
 }

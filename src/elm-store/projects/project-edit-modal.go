@@ -1,4 +1,4 @@
-package models
+package projects
 
 import (
 	"strconv"
@@ -29,7 +29,7 @@ type ProjectEditCanceledMsg struct{}
 
 func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditModal {
 	nameInput := textinput.New()
-	nameInput.Placeholder = "Project Name"
+	nameInput.Placeholder = "domain.Project Name"
 	nameInput.SetValue(name)
 	nameInput.Focus()
 	nameInput.CharLimit = 64
@@ -62,7 +62,7 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 			// Validate inputs
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
-				m.ErrorMessage = "Project name is required"
+				m.ErrorMessage = "domain.Project name is required"
 				m.FocusedInput = 0
 				m.updateInputFocus()
 				return *m, nil
@@ -126,7 +126,7 @@ func (m *ProjectEditModal) View(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("241"))
 
-	sb.WriteString(titleStyle.Render("Edit Project"))
+	sb.WriteString(titleStyle.Render("Edit domain.Project"))
 	sb.WriteString("\n\n")
 
 	// Name input

@@ -2,16 +2,14 @@ package models
 
 import (
 	"time"
-	"tltui/src/domain"
+	"tltui/src/common"
+	"tltui/src/elm-store/calendar"
+	"tltui/src/elm-store/projects"
+	"tltui/src/elm-store/workhour_details"
 	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-// Re-export domain types for convenience
-type WorkhourDetails = domain.WorkhourDetails
-type Workhour = domain.Workhour
-type Project = domain.Project
 
 type AppMode int
 
@@ -25,12 +23,12 @@ type AppModel struct {
 	Mode AppMode
 
 	// Views
-	Calendar        CalendarModel
-	Projects        ProjectsModel
-	WorkhourDetails WorkhourDetailsModel
+	Calendar        calendar.CalendarModel
+	Projects        projects.ProjectsModel
+	WorkhourDetails workhour_details.WorkhourDetailsModel
 
 	// Notification system
-	Notification *Notification
+	Notification *common.Notification
 }
 
 func (m AppModel) Init() tea.Cmd {
@@ -42,14 +40,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 
-	case ShowNotificationMsg:
-		m.Notification = &Notification{
+	case common.ShowNotificationMsg:
+		m.Notification = &common.Notification{
 			Message: msg.Message,
 			Type:    msg.Type,
 		}
-		return m, StartNotificationTimeout(3 * time.Second)
+		return m, common.StartNotificationTimeout(3 * time.Second)
 
-	case ClearNotificationMsg:
+	case common.ClearNotificationMsg:
 		m.Notification = nil
 		return m, nil
 
@@ -59,13 +57,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var updatedModel tea.Model
 
 		updatedModel, cmd1 = m.Calendar.Update(msg)
-		m.Calendar = updatedModel.(CalendarModel)
+		m.Calendar = updatedModel.(calendar.CalendarModel)
 
 		updatedModel, cmd2 = m.Projects.Update(msg)
-		m.Projects = updatedModel.(ProjectsModel)
+		m.Projects = updatedModel.(projects.ProjectsModel)
 
 		updatedModel, cmd3 = m.WorkhourDetails.Update(msg)
-		m.WorkhourDetails = updatedModel.(WorkhourDetailsModel)
+		m.WorkhourDetails = updatedModel.(workhour_details.WorkhourDetailsModel)
 
 		return m, tea.Batch(cmd1, cmd2, cmd3)
 
@@ -109,7 +107,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		var updatedModel tea.Model
 		updatedModel, cmd = m.Calendar.Update(msg)
-		m.Calendar = updatedModel.(CalendarModel)
+		m.Calendar = updatedModel.(calendar.CalendarModel)
 		return m, cmd
 	}
 
@@ -117,7 +115,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		var updatedModel tea.Model
 		updatedModel, cmd = m.Projects.Update(msg)
-		m.Projects = updatedModel.(ProjectsModel)
+		m.Projects = updatedModel.(projects.ProjectsModel)
 		return m, cmd
 	}
 
@@ -125,7 +123,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		var updatedModel tea.Model
 		updatedModel, cmd = m.WorkhourDetails.Update(msg)
-		m.WorkhourDetails = updatedModel.(WorkhourDetailsModel)
+		m.WorkhourDetails = updatedModel.(workhour_details.WorkhourDetailsModel)
 		return m, cmd
 	}
 
@@ -157,7 +155,7 @@ func (m AppModel) View() string {
 
 	// Overlay notification bar at the top if present
 	if m.Notification != nil {
-		return RenderNotificationOverlay(m.Notification, mainView)
+		return common.RenderNotificationOverlay(m.Notification, mainView)
 	}
 
 	return mainView

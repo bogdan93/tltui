@@ -1,4 +1,4 @@
-package models
+package calendar
 
 import (
 	"encoding/csv"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
@@ -168,12 +169,12 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 	}
 
 	// Create maps for quick lookup
-	detailsMap := make(map[int]WorkhourDetails)
+	detailsMap := make(map[int]domain.WorkhourDetails)
 	for _, wd := range workhourDetails {
 		detailsMap[wd.ID] = wd
 	}
 
-	projectsMap := make(map[int]Project)
+	projectsMap := make(map[int]domain.Project)
 	for _, p := range projects {
 		projectsMap[p.ID] = p
 	}

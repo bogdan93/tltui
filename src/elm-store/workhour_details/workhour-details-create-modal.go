@@ -1,4 +1,4 @@
-package models
+package workhour_details
 
 import (
 	"strings"

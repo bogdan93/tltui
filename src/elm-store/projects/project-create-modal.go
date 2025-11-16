@@ -1,4 +1,4 @@
-package models
+package projects
 
 import (
 	"strconv"
@@ -26,7 +26,7 @@ type ProjectCreateCanceledMsg struct{}
 
 func NewProjectCreateModal() *ProjectCreateModal {
 	nameInput := textinput.New()
-	nameInput.Placeholder = "Project Name"
+	nameInput.Placeholder = "domain.Project Name"
 	nameInput.Focus()
 	nameInput.CharLimit = 64
 	nameInput.Width = 40
@@ -55,7 +55,7 @@ func (m *ProjectCreateModal) Update(msg tea.Msg) (ProjectCreateModal, tea.Cmd) {
 
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
-				m.ErrorMessage = "Project name is required"
+				m.ErrorMessage = "domain.Project name is required"
 				m.FocusedInput = 0
 				m.updateInputFocus()
 				return *m, nil
@@ -121,7 +121,7 @@ func (m *ProjectCreateModal) View(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("241"))
 
-	sb.WriteString(titleStyle.Render("Create New Project"))
+	sb.WriteString(titleStyle.Render("Create New domain.Project"))
 	sb.WriteString("\n\n")
 
 	// Name input
