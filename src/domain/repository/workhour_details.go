@@ -6,7 +6,6 @@ import (
 	"tltui/src/domain"
 )
 
-// GetAllWorkhourDetailsFromDB retrieves all workhour details from the database
 func GetAllWorkhourDetailsFromDB() ([]domain.WorkhourDetails, error) {
 	rows, err := db.Query("SELECT id, name, short_name, is_work FROM workhour_details ORDER BY id")
 	if err != nil {
@@ -30,7 +29,6 @@ func GetAllWorkhourDetailsFromDB() ([]domain.WorkhourDetails, error) {
 	return details, nil
 }
 
-// GetWorkhourDetailsByID retrieves a single workhour details by ID
 func GetWorkhourDetailsByID(id int) (*domain.WorkhourDetails, error) {
 	var d domain.WorkhourDetails
 	err := db.QueryRow("SELECT id, name, short_name, is_work FROM workhour_details WHERE id = ?", id).
@@ -46,7 +44,6 @@ func GetWorkhourDetailsByID(id int) (*domain.WorkhourDetails, error) {
 	return &d, nil
 }
 
-// CreateWorkhourDetails inserts new workhour details into the database
 func CreateWorkhourDetails(details domain.WorkhourDetails) error {
 	_, err := db.Exec(
 		"INSERT INTO workhour_details (id, name, short_name, is_work) VALUES (?, ?, ?, ?)",
@@ -58,7 +55,6 @@ func CreateWorkhourDetails(details domain.WorkhourDetails) error {
 	return nil
 }
 
-// UpdateWorkhourDetails updates existing workhour details
 func UpdateWorkhourDetails(details domain.WorkhourDetails) error {
 	result, err := db.Exec(
 		"UPDATE workhour_details SET name = ?, short_name = ?, is_work = ? WHERE id = ?",
@@ -79,7 +75,6 @@ func UpdateWorkhourDetails(details domain.WorkhourDetails) error {
 	return nil
 }
 
-// DeleteWorkhourDetails deletes workhour details by ID
 func DeleteWorkhourDetails(id int) error {
 	result, err := db.Exec("DELETE FROM workhour_details WHERE id = ?", id)
 	if err != nil {
@@ -97,16 +92,13 @@ func DeleteWorkhourDetails(id int) error {
 	return nil
 }
 
-// SeedWorkhourDetails seeds the initial workhour details into the database
 func SeedWorkhourDetails() error {
-	// Check if workhour details already exist
 	var count int
 	err := db.QueryRow("SELECT COUNT(*) FROM workhour_details").Scan(&count)
 	if err != nil {
 		return fmt.Errorf("failed to check workhour details: %w", err)
 	}
 
-	// Only seed if table is empty
 	if count > 0 {
 		return nil
 	}

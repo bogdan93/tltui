@@ -6,7 +6,6 @@ import (
 	"tltui/src/domain"
 )
 
-// GetAllProjectsFromDB retrieves all projects from the database
 func GetAllProjectsFromDB() ([]domain.Project, error) {
 	rows, err := db.Query("SELECT id, odoo_id, name FROM projects ORDER BY id")
 	if err != nil {
@@ -30,7 +29,6 @@ func GetAllProjectsFromDB() ([]domain.Project, error) {
 	return projects, nil
 }
 
-// GetProjectByID retrieves a single project by ID
 func GetProjectByID(id int) (*domain.Project, error) {
 	var p domain.Project
 	err := db.QueryRow("SELECT id, odoo_id, name FROM projects WHERE id = ?", id).
@@ -46,7 +44,6 @@ func GetProjectByID(id int) (*domain.Project, error) {
 	return &p, nil
 }
 
-// CreateProject inserts a new project into the database
 func CreateProject(project domain.Project) error {
 	_, err := db.Exec(
 		"INSERT INTO projects (id, odoo_id, name) VALUES (?, ?, ?)",
@@ -58,7 +55,6 @@ func CreateProject(project domain.Project) error {
 	return nil
 }
 
-// UpdateProject updates an existing project
 func UpdateProject(project domain.Project) error {
 	result, err := db.Exec(
 		"UPDATE projects SET odoo_id = ?, name = ? WHERE id = ?",
@@ -79,7 +75,6 @@ func UpdateProject(project domain.Project) error {
 	return nil
 }
 
-// DeleteProject deletes a project by ID
 func DeleteProject(id int) error {
 	result, err := db.Exec("DELETE FROM projects WHERE id = ?", id)
 	if err != nil {
@@ -97,16 +92,13 @@ func DeleteProject(id int) error {
 	return nil
 }
 
-// SeedProjects seeds the initial projects into the database
 func SeedProjects() error {
-	// Check if projects already exist
 	var count int
 	err := db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&count)
 	if err != nil {
 		return fmt.Errorf("failed to check projects: %w", err)
 	}
 
-	// Only seed if table is empty
 	if count > 0 {
 		return nil
 	}

@@ -94,7 +94,6 @@ func (m *WorkhourDetailsEditModal) Update(msg tea.Msg) (WorkhourDetailsEditModal
 			return *m, nil
 
 		case " ":
-			// Toggle IsWork when focused on the checkbox
 			if m.FocusedInput == 2 {
 				m.IsWork = !m.IsWork
 				return *m, nil
@@ -102,7 +101,6 @@ func (m *WorkhourDetailsEditModal) Update(msg tea.Msg) (WorkhourDetailsEditModal
 		}
 	}
 
-	// Update text inputs when modal is shown
 	if m.FocusedInput == 0 {
 		m.NameInput, cmd = m.NameInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -128,26 +126,22 @@ func (m *WorkhourDetailsEditModal) View(Width, Height int) string {
 	sb.WriteString(titleStyle.Render("Edit Workhour Detail"))
 	sb.WriteString("\n\n")
 
-	// Name input
 	sb.WriteString(labelStyle.Render("Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.NameInput.View())
 	sb.WriteString("\n\n")
 
-	// Short Name input
 	sb.WriteString(labelStyle.Render("Short Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.ShortNameInput.View())
 	sb.WriteString("\n")
 
-	// Hint for short name
 	hintStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 	sb.WriteString(hintStyle.Render("Displayed in calendar view • Use emoji only"))
 	sb.WriteString("\n\n")
 
-	// IsWork checkbox
 	sb.WriteString(labelStyle.Render("Is Work:"))
 	sb.WriteString("\n")
 	checkboxStyle := lipgloss.NewStyle().
@@ -163,19 +157,16 @@ func (m *WorkhourDetailsEditModal) View(Width, Height int) string {
 	}
 	sb.WriteString(checkboxStyle.Render(checkbox))
 
-	// Hint text - subtle and inline (reuse hintStyle from above)
 	hintStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 	if m.FocusedInput == 2 {
 		sb.WriteString(" " + labelStyle.Render("(press Space to toggle)"))
 	} else if m.IsWork {
-		// Only show hint when checkbox is checked
 		sb.WriteString("  " + hintStyle.Render("(included in mail report)"))
 	}
 	sb.WriteString("\n\n")
 
-	// Error message
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).

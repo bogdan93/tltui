@@ -22,12 +22,10 @@ const (
 type AppModel struct {
 	Mode AppMode
 
-	// Views
 	Calendar        calendar.CalendarModel
 	Projects        projects.ProjectsModel
 	WorkhourDetails workhour_details.WorkhourDetailsModel
 
-	// Notification system
 	Notification *common.Notification
 }
 
@@ -52,7 +50,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.WindowSizeMsg:
-		// Forward window size to all models
 		var cmd1, cmd2, cmd3 tea.Cmd
 		var updatedModel tea.Model
 
@@ -153,7 +150,6 @@ func (m AppModel) View() string {
 
 	mainView := render.RenderPageLayoutWithTabs(activeTabIndex, content)
 
-	// Overlay notification bar at the top if present
 	if m.Notification != nil {
 		return common.RenderNotificationOverlay(m.Notification, mainView)
 	}

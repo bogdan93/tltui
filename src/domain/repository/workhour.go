@@ -6,7 +6,6 @@ import (
 	"tltui/src/domain"
 )
 
-// GetAllWorkhours retrieves all workhours from the database
 func GetAllWorkhours() ([]domain.Workhour, error) {
 	rows, err := db.Query("SELECT id, date, details_id, project_id, hours FROM workhours ORDER BY date DESC")
 	if err != nil {
@@ -22,7 +21,6 @@ func GetAllWorkhours() ([]domain.Workhour, error) {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
 		}
 
-		// Convert date string to time.Time
 		wh.Date, err = StringToDate(dateStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse date: %w", err)
@@ -38,7 +36,6 @@ func GetAllWorkhours() ([]domain.Workhour, error) {
 	return workhours, nil
 }
 
-// GetWorkhoursByDate retrieves all workhours for a specific date
 func GetWorkhoursByDate(date time.Time) ([]domain.Workhour, error) {
 	dateStr := DateToString(date)
 	rows, err := db.Query(
@@ -58,7 +55,6 @@ func GetWorkhoursByDate(date time.Time) ([]domain.Workhour, error) {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
 		}
 
-		// Convert date string to time.Time
 		wh.Date, err = StringToDate(dbDateStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse date: %w", err)
@@ -74,7 +70,6 @@ func GetWorkhoursByDate(date time.Time) ([]domain.Workhour, error) {
 	return workhours, nil
 }
 
-// GetWorkhoursByDateRange retrieves all workhours within a date range
 func GetWorkhoursByDateRange(start, end time.Time) ([]domain.Workhour, error) {
 	startStr := DateToString(start)
 	endStr := DateToString(end)
@@ -96,7 +91,6 @@ func GetWorkhoursByDateRange(start, end time.Time) ([]domain.Workhour, error) {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
 		}
 
-		// Convert date string to time.Time
 		wh.Date, err = StringToDate(dateStr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse date: %w", err)
@@ -112,7 +106,6 @@ func GetWorkhoursByDateRange(start, end time.Time) ([]domain.Workhour, error) {
 	return workhours, nil
 }
 
-// CreateWorkhour inserts a new workhour into the database
 func CreateWorkhour(workhour domain.Workhour) (int, error) {
 	dateStr := DateToString(workhour.Date)
 
@@ -132,7 +125,6 @@ func CreateWorkhour(workhour domain.Workhour) (int, error) {
 	return int(id), nil
 }
 
-// UpdateWorkhour updates an existing workhour
 func UpdateWorkhour(id int, workhour domain.Workhour) error {
 	dateStr := DateToString(workhour.Date)
 
@@ -155,7 +147,6 @@ func UpdateWorkhour(id int, workhour domain.Workhour) error {
 	return nil
 }
 
-// DeleteWorkhour deletes a workhour by ID
 func DeleteWorkhour(id int) error {
 	result, err := db.Exec("DELETE FROM workhours WHERE id = ?", id)
 	if err != nil {
@@ -173,7 +164,6 @@ func DeleteWorkhour(id int) error {
 	return nil
 }
 
-// DeleteWorkhoursByDate deletes all workhours for a specific date
 func DeleteWorkhoursByDate(date time.Time) error {
 	dateStr := DateToString(date)
 	_, err := db.Exec("DELETE FROM workhours WHERE date = ?", dateStr)

@@ -28,13 +28,10 @@ type WorkhoursViewModal struct {
 	WorkhourDetails []domain.WorkhourDetails
 	Projects        []domain.Project
 
-	// Mode management
 	Mode ModalMode
 
-	// View mode selection
 	SelectedWorkhourIndex int // Index in Workhours array for edit/delete
 
-	// Create/Edit mode fields
 	HoursInput             textinput.Model
 	SelectedDetailsIndex   int // Index in domain.WorkhourDetails array
 	SelectedProjectIndex   int // Index in Projects array (-1 = None)
@@ -130,7 +127,6 @@ func (m *WorkhoursViewModal) updateCreateMode(msg tea.Msg) (WorkhoursViewModal, 
 			return m.submitCreate()
 
 		case "esc":
-			// Cancel and return to view mode
 			m.Mode = ModeView
 			m.ErrorMessage = ""
 			return *m, nil
@@ -171,7 +167,6 @@ func (m *WorkhoursViewModal) updateCreateMode(msg tea.Msg) (WorkhoursViewModal, 
 		}
 	}
 
-	// Update hours input if focused
 	if m.FocusedInput == 2 {
 		m.HoursInput, cmd = m.HoursInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -191,7 +186,6 @@ func (m *WorkhoursViewModal) updateEditMode(msg tea.Msg) (WorkhoursViewModal, te
 			return m.submitEdit()
 
 		case "esc":
-			// Cancel and return to view mode
 			m.Mode = ModeView
 			m.ErrorMessage = ""
 			return *m, nil
@@ -232,7 +226,6 @@ func (m *WorkhoursViewModal) updateEditMode(msg tea.Msg) (WorkhoursViewModal, te
 		}
 	}
 
-	// Update hours input if focused
 	if m.FocusedInput == 2 {
 		m.HoursInput, cmd = m.HoursInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -246,7 +239,6 @@ func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
-			// Confirm delete
 			if m.SelectedWorkhourIndex >= 0 && m.SelectedWorkhourIndex < len(m.Workhours) {
 				workhourID := m.Workhours[m.SelectedWorkhourIndex].ID
 				m.Mode = ModeView
@@ -254,12 +246,10 @@ func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, 
 					dispatchWorkhourDeletedMsg(workhourID, m.Date),
 				)
 			}
-			// Invalid selection, just return to view mode
 			m.Mode = ModeView
 			return *m, nil
 
 		case "n", "N", "esc":
-			// Cancel delete
 			m.Mode = ModeView
 			return *m, nil
 		}
@@ -269,7 +259,6 @@ func (m *WorkhoursViewModal) updateDeleteMode(msg tea.Msg) (WorkhoursViewModal, 
 }
 
 func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
-	// Validate hours
 	hoursStr := strings.TrimSpace(m.HoursInput.Value())
 	if hoursStr == "" {
 		m.ErrorMessage = "Hours is required"
@@ -316,7 +305,6 @@ func (m *WorkhoursViewModal) submitEdit() (WorkhoursViewModal, tea.Cmd) {
 }
 
 func (m *WorkhoursViewModal) submitCreate() (WorkhoursViewModal, tea.Cmd) {
-	// Validate hours
 	hoursStr := strings.TrimSpace(m.HoursInput.Value())
 	if hoursStr == "" {
 		m.ErrorMessage = "Hours is required"
@@ -355,7 +343,6 @@ func (m *WorkhoursViewModal) submitCreate() (WorkhoursViewModal, tea.Cmd) {
 }
 
 func (m *WorkhoursViewModal) View(Width, Height int) string {
-	// Route to mode-specific view renderers
 	switch m.Mode {
 	case ModeView:
 		return m.viewModeView(Width, Height)
@@ -403,16 +390,13 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		Italic(true).
 		MarginTop(1)
 
-	// Title
 	sb.WriteString(titleStyle.Render("Work Hours"))
 	sb.WriteString("\n")
 
-	// Date
 	dateStr := m.Date.Format("Monday, January 2, 2006")
 	sb.WriteString(dateStyle.Render(dateStr))
 	sb.WriteString("\n\n")
 
-	// Check if there are any workhours
 	if len(m.Workhours) == 0 {
 		sb.WriteString(emptyStyle.Render("No work hours logged for this day."))
 		sb.WriteString("\n\n")
@@ -420,7 +404,6 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		return render.RenderSimpleModal(Width, Height, sb.String())
 	}
 
-	// Display each workhour entry
 	var totalWorkHours float64
 	var totalNonWorkHours float64
 
@@ -429,14 +412,12 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		Foreground(lipgloss.Color("39"))
 
 	for i, wh := range m.Workhours {
-		// Add selection indicator
 		prefix := "  "
 		if i == m.SelectedWorkhourIndex {
 			prefix = "▶ "
 		}
 		sb.WriteString(prefix)
 
-		// Find the workhour details
 		var details *domain.WorkhourDetails
 		for _, wd := range m.WorkhourDetails {
 			if wd.ID == wh.DetailsID {
@@ -445,7 +426,6 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 			}
 		}
 
-		// Find the project
 		var project *domain.Project
 		if wh.ProjectID > 0 {
 			for _, p := range m.Projects {
@@ -456,13 +436,11 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 			}
 		}
 
-		// Format hours
 		hoursStr := fmt.Sprintf("%.1f", wh.Hours)
 		if wh.Hours == float64(int(wh.Hours)) {
 			hoursStr = fmt.Sprintf("%d", int(wh.Hours))
 		}
 
-		// Style for this entry
 		entryLabelStyle := labelStyle
 		entryValueStyle := valueStyle
 		if i == m.SelectedWorkhourIndex {
@@ -470,7 +448,6 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 			entryValueStyle = selectedStyle
 		}
 
-		// Display entry
 		if details != nil {
 			sb.WriteString(entryLabelStyle.Render(fmt.Sprintf("%s %s: ", details.ShortName, details.Name)))
 			sb.WriteString(entryValueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
@@ -479,7 +456,6 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 				sb.WriteString(entryValueStyle.Render(fmt.Sprintf(" (%s)", project.Name)))
 			}
 
-			// Track totals
 			if details.IsWork {
 				totalWorkHours += wh.Hours
 			} else {
@@ -495,7 +471,6 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 		}
 	}
 
-	// Display totals
 	sb.WriteString("\n\n")
 	sb.WriteString(labelStyle.Render("───────────────────────────"))
 	sb.WriteString("\n")
@@ -563,16 +538,13 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("39"))
 
-	// Title
 	sb.WriteString(titleStyle.Render("Add Work Hours"))
 	sb.WriteString("\n")
 
-	// Date (read-only)
 	dateStr := m.Date.Format("Monday, January 2, 2006")
 	sb.WriteString(dateStyle.Render(dateStr))
 	sb.WriteString("\n\n")
 
-	// WorkhourDetails selection
 	sb.WriteString(labelStyle.Render("Type:"))
 	sb.WriteString("\n")
 	for i, details := range m.WorkhourDetails {
@@ -595,19 +567,16 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// domain.Project selection
 	sb.WriteString(labelStyle.Render("domain.Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
-		// No projects available - show hint
 		hintStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true)
 		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
-		// domain.Project list
 		for i, project := range m.Projects {
 			style := valueStyle
 			prefix := "  "
@@ -625,7 +594,6 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// Hours input
 	sb.WriteString(labelStyle.Render("Hours:"))
 	sb.WriteString("\n")
 	if m.FocusedInput == 2 {
@@ -636,14 +604,12 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	sb.WriteString(m.HoursInput.View())
 	sb.WriteString("\n\n")
 
-	// Error message (always reserve space to prevent shifting)
 	errorStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("196")).
 		Bold(true)
 	if m.ErrorMessage != "" {
 		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
 	} else {
-		// Empty space to maintain consistent height
 		sb.WriteString(" ")
 	}
 	sb.WriteString("\n\n")
@@ -681,16 +647,13 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("39"))
 
-	// Title
 	sb.WriteString(titleStyle.Render("Edit Work Hours"))
 	sb.WriteString("\n")
 
-	// Date (read-only)
 	dateStr := m.Date.Format("Monday, January 2, 2006")
 	sb.WriteString(dateStyle.Render(dateStr))
 	sb.WriteString("\n\n")
 
-	// WorkhourDetails selection
 	sb.WriteString(labelStyle.Render("Type:"))
 	sb.WriteString("\n")
 	for i, details := range m.WorkhourDetails {
@@ -713,19 +676,16 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// domain.Project selection
 	sb.WriteString(labelStyle.Render("domain.Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
-		// No projects available - show hint
 		hintStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("240")).
 			Italic(true)
 		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
-		// domain.Project list
 		for i, project := range m.Projects {
 			style := valueStyle
 			prefix := "  "
@@ -743,7 +703,6 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	// Hours input
 	sb.WriteString(labelStyle.Render("Hours:"))
 	sb.WriteString("\n")
 	if m.FocusedInput == 2 {
@@ -754,14 +713,12 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	sb.WriteString(m.HoursInput.View())
 	sb.WriteString("\n\n")
 
-	// Error message (always reserve space to prevent shifting)
 	errorStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("196")).
 		Bold(true)
 	if m.ErrorMessage != "" {
 		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
 	} else {
-		// Empty space to maintain consistent height
 		sb.WriteString(" ")
 	}
 	sb.WriteString("\n\n")
@@ -798,10 +755,8 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 		Foreground(lipgloss.Color("241")).
 		Italic(true)
 
-	// Get the workhour to delete
 	wh := m.Workhours[m.SelectedWorkhourIndex]
 
-	// Find the details
 	var detailsName string
 	var detailsShortName string
 	for _, wd := range m.WorkhourDetails {
@@ -812,7 +767,6 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 		}
 	}
 
-	// Find the project
 	var projectName string
 	for _, p := range m.Projects {
 		if p.ID == wh.ProjectID {
@@ -821,27 +775,22 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 		}
 	}
 
-	// Format hours
 	hoursStr := fmt.Sprintf("%.1f", wh.Hours)
 	if wh.Hours == float64(int(wh.Hours)) {
 		hoursStr = fmt.Sprintf("%d", int(wh.Hours))
 	}
 
-	// Title
 	sb.WriteString(titleStyle.Render("⚠ Delete Work Hours"))
 	sb.WriteString("\n\n")
 
-	// Warning
 	sb.WriteString(warningStyle.Render("Are you sure you want to delete this entry?"))
 	sb.WriteString("\n\n")
 
-	// Date
 	dateStr := m.Date.Format("Monday, January 2, 2006")
 	sb.WriteString(labelStyle.Render("Date: "))
 	sb.WriteString(valueStyle.Render(dateStr))
 	sb.WriteString("\n\n")
 
-	// Type
 	sb.WriteString(labelStyle.Render("Type: "))
 	sb.WriteString(valueStyle.Render(fmt.Sprintf("%s %s", detailsShortName, detailsName)))
 	sb.WriteString("\n\n")
@@ -853,12 +802,10 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 		sb.WriteString("\n\n")
 	}
 
-	// Hours
 	sb.WriteString(labelStyle.Render("Hours: "))
 	sb.WriteString(valueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
 	sb.WriteString("\n\n")
 
-	// Final warning
 	warningStyle2 := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("196")).
 		Bold(true)
@@ -928,14 +875,12 @@ func dispatchWorkhourDeletedMsg(id int, date time.Time) tea.Cmd {
 	}
 }
 
-// Helper method to initialize/reset create mode
 func (m *WorkhoursViewModal) initializeCreateMode() {
 	m.Mode = ModeCreate
 	m.HoursInput.SetValue("")
 	m.HoursInput.Focus()
 	m.SelectedDetailsIndex = 0
 
-	// Refresh projects and workhour details from database to ensure we have latest data
 	if projects, err := repository.GetAllProjectsFromDB(); err == nil {
 		m.Projects = projects
 	}
@@ -943,7 +888,6 @@ func (m *WorkhoursViewModal) initializeCreateMode() {
 		m.WorkhourDetails = details
 	}
 
-	// Preselect first project if available
 	if len(m.Projects) > 0 {
 		m.SelectedProjectIndex = 0
 	} else {
@@ -954,7 +898,6 @@ func (m *WorkhoursViewModal) initializeCreateMode() {
 	m.updateInputFocus()
 }
 
-// Helper method to initialize edit mode
 func (m *WorkhoursViewModal) initializeEditMode() {
 	if len(m.Workhours) == 0 || m.SelectedWorkhourIndex >= len(m.Workhours) {
 		return
@@ -963,7 +906,6 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 	m.Mode = ModeEdit
 	wh := m.Workhours[m.SelectedWorkhourIndex]
 
-	// Refresh projects and workhour details from database to ensure we have latest data
 	if projects, err := repository.GetAllProjectsFromDB(); err == nil {
 		m.Projects = projects
 	}
@@ -971,7 +913,6 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 		m.WorkhourDetails = details
 	}
 
-	// Set hours input
 	hoursStr := fmt.Sprintf("%.1f", wh.Hours)
 	if wh.Hours == float64(int(wh.Hours)) {
 		hoursStr = fmt.Sprintf("%d", int(wh.Hours))
@@ -979,7 +920,6 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 	m.HoursInput.SetValue(hoursStr)
 	m.HoursInput.Focus()
 
-	// Find and set the details index
 	m.SelectedDetailsIndex = 0
 	for i, details := range m.WorkhourDetails {
 		if details.ID == wh.DetailsID {
@@ -988,7 +928,6 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 		}
 	}
 
-	// Find and set the project index
 	m.SelectedProjectIndex = -1
 	for i, project := range m.Projects {
 		if project.ID == wh.ProjectID {
@@ -1002,7 +941,6 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 	m.updateInputFocus()
 }
 
-// Helper method to update input focus
 func (m *WorkhoursViewModal) updateInputFocus() {
 	if m.FocusedInput == 2 {
 		m.HoursInput.Focus()

@@ -32,13 +32,11 @@ func (m *WorkhourDetailsDeleteModal) Update(msg tea.Msg) (WorkhourDetailsDeleteM
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
-			// Confirm delete
 			return *m, tea.Batch(
 				dispatchWorkhourDetailsDeletedMsg(m.WorkhourDetailID),
 			)
 
 		case "n", "N", "esc":
-			// Cancel delete
 			return *m, tea.Batch(
 				dispatchWorkhourDetailsDeleteCanceledMsg(),
 			)

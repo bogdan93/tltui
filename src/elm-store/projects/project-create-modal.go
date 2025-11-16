@@ -98,7 +98,6 @@ func (m *ProjectCreateModal) Update(msg tea.Msg) (ProjectCreateModal, tea.Cmd) {
 		}
 	}
 
-	// Update text inputs
 	if m.FocusedInput == 0 {
 		m.NameInput, cmd = m.NameInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -124,19 +123,16 @@ func (m *ProjectCreateModal) View(Width, Height int) string {
 	sb.WriteString(titleStyle.Render("Create New domain.Project"))
 	sb.WriteString("\n\n")
 
-	// Name input
 	sb.WriteString(labelStyle.Render("Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.NameInput.View())
 	sb.WriteString("\n\n")
 
-	// Odoo ID input
 	sb.WriteString(labelStyle.Render("Odoo ID:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.OdooIDInput.View())
 	sb.WriteString("\n\n")
 
-	// Error message
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).

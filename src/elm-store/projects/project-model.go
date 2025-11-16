@@ -30,15 +30,12 @@ type ProjectsModel struct {
 func NewProjectsModel() ProjectsModel {
 	m := ProjectsModel{}
 
-	// Load from database
 	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
-		// Fallback to empty if error
 		projects = []domain.Project{}
 	}
 	m.Projects = projects
 
-	// Calculate next available ID
 	m.NextID = 1
 	for _, p := range m.Projects {
 		if p.ID >= m.NextID {
@@ -46,14 +43,12 @@ func NewProjectsModel() ProjectsModel {
 		}
 	}
 
-	// Setup table columns
 	columns := []table.Column{
 		{Title: "ID", Width: 6},
 		{Title: "Project Name", Width: 30},
 		{Title: "Odoo ID", Width: 10},
 	}
 
-	// Convert projects to table rows
 	rows := []table.Row{}
 	for _, p := range m.Projects {
 		rows = append(rows, table.Row{
@@ -63,7 +58,6 @@ func NewProjectsModel() ProjectsModel {
 		})
 	}
 
-	// Create table
 	m.ProjectsTable = table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -104,14 +98,12 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			OdooID: msg.OdooID,
 		}
 
-		// Save to database
 		err := repository.CreateProject(newProject)
 		if err != nil {
 			m.ProjectCreateModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
 		}
 
-		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectCreateModal = nil
@@ -120,7 +112,6 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Projects = projects
 		m.NextID++
 
-		// Update table
 		rows := []table.Row{}
 		for _, p := range m.Projects {
 			rows = append(rows, table.Row{
@@ -138,7 +129,6 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ProjectEditedMsg:
-		// Update in database
 		updatedProject := domain.Project{
 			ID:     msg.ProjectID,
 			Name:   msg.Name,
@@ -150,7 +140,6 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
 		}
 
-		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectEditModal = nil
@@ -175,14 +164,12 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ProjectDeletedMsg:
-		// Delete from database
 		err := repository.DeleteProject(msg.ProjectID)
 		if err != nil {
 			m.ProjectDeleteModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
 		}
 
-		// Reload from database
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectDeleteModal = nil
@@ -190,7 +177,6 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.Projects = projects
 
-		// Update table
 		rows := []table.Row{}
 		for _, p := range m.Projects {
 			rows = append(rows, table.Row{
@@ -311,7 +297,6 @@ func (m ProjectsModel) View() string {
 	return m.ProjectsViewport.View() + "\n" + helpText
 }
 
-// getSelectedProject returns the currently selected project from the table
 func (m ProjectsModel) getSelectedProject() *domain.Project {
 	cursor := m.ProjectsTable.Cursor()
 	if cursor >= 0 && cursor < len(m.Projects) {

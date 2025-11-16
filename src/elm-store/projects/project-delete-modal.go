@@ -32,13 +32,11 @@ func (m *ProjectDeleteModal) Update(msg tea.Msg) (ProjectDeleteModal, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "y", "Y", "enter":
-			// Confirm delete
 			return *m, tea.Batch(
 				dispatchProjectDeletedMsg(m.ProjectID),
 			)
 
 		case "n", "N", "esc":
-			// Cancel delete
 			return *m, tea.Batch(
 				dispatchProjectDeleteCanceledMsg(),
 			)

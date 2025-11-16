@@ -30,15 +30,12 @@ type WorkhourDetailsModel struct {
 func NewWorkhourDetailsModel() WorkhourDetailsModel {
 	m := WorkhourDetailsModel{}
 
-	// Load from database
 	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
-		// Fallback to empty if error
 		workhourDetails = []domain.WorkhourDetails{}
 	}
 	m.WorkhourDetails = workhourDetails
 
-	// Calculate next available ID
 	m.NextID = 1
 	for _, wd := range m.WorkhourDetails {
 		if wd.ID >= m.NextID {
@@ -46,7 +43,6 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 		}
 	}
 
-	// Setup table columns
 	columns := []table.Column{
 		{Title: "ID", Width: 6},
 		{Title: "Name", Width: 25},
@@ -54,7 +50,6 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 		{Title: "Is Work", Width: 10},
 	}
 
-	// Convert workhour details to table rows
 	rows := []table.Row{}
 	for _, wd := range m.WorkhourDetails {
 		isWorkStr := "No"
@@ -69,7 +64,6 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 		})
 	}
 
-	// Create table
 	m.WorkhourDetailsTable = table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
@@ -104,7 +98,6 @@ func (m WorkhourDetailsModel) Init() tea.Cmd {
 func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case WorkhourDetailsCreatedMsg:
-		// Create new workhour detail with next available ID
 		newWorkhourDetail := domain.WorkhourDetails{
 			ID:        m.NextID,
 			Name:      msg.Name,
@@ -112,14 +105,12 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			IsWork:    msg.IsWork,
 		}
 
-		// Save to database
 		err := repository.CreateWorkhourDetails(newWorkhourDetail)
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
 		}
 
-		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
@@ -128,7 +119,6 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.WorkhourDetails = details
 		m.NextID++
 
-		// Update table
 		rows := []table.Row{}
 		for _, wd := range m.WorkhourDetails {
 			isWorkStr := "No"
@@ -151,14 +141,12 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDetailsDeletedMsg:
-		// Delete from database
 		err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
 		}
 
-		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
@@ -166,7 +154,6 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.WorkhourDetails = details
 
-		// Update table
 		rows := []table.Row{}
 		for _, wd := range m.WorkhourDetails {
 			isWorkStr := "No"
@@ -189,7 +176,6 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDetailsEditedMsg:
-		// Update in database
 		updatedWorkhourDetail := domain.WorkhourDetails{
 			ID:        msg.WorkhourDetailID,
 			Name:      msg.Name,
@@ -202,7 +188,6 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
 		}
 
-		// Reload from database
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsEditModal = nil
@@ -336,7 +321,6 @@ func (m WorkhourDetailsModel) View() string {
 	return m.WorkhourDetailsViewport.View() + "\n" + helpText
 }
 
-// getSelectedWorkhourDetail returns the currently selected workhour detail from the table
 func (m WorkhourDetailsModel) getSelectedWorkhourDetail() *domain.WorkhourDetails {
 	cursor := m.WorkhourDetailsTable.Cursor()
 	if cursor >= 0 && cursor < len(m.WorkhourDetails) {

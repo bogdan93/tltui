@@ -13,7 +13,6 @@ import (
 
 var db *sql.DB
 
-// InitDB initializes the database connection and creates schema if needed
 func InitDB() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -22,14 +21,9 @@ func InitDB() error {
 
 	var dbDir string
 
-	// Platform-specific config directory
-	// macOS: ~/Library/Application Support/tltui
-	// Linux: $XDG_CONFIG_HOME/tltui or ~/.config/tltui
 	if runtime.GOOS == "darwin" {
-		// macOS
 		dbDir = filepath.Join(homeDir, "Library", "Application Support", "tltui")
 	} else {
-		// Linux/BSD - Use XDG Base Directory
 		configDir := os.Getenv("XDG_CONFIG_HOME")
 		if configDir == "" {
 			configDir = filepath.Join(homeDir, ".config")
@@ -37,24 +31,20 @@ func InitDB() error {
 		dbDir = filepath.Join(configDir, "tltui")
 	}
 
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	// Open database connection
 	dbPath := filepath.Join(dbDir, "data.db")
 	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Enable foreign keys
 	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
 		return fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	// Create schema
 	if err := createSchema(); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
@@ -62,7 +52,6 @@ func InitDB() error {
 	return nil
 }
 
-// CloseDB closes the database connection
 func CloseDB() error {
 	if db != nil {
 		return db.Close()
@@ -70,12 +59,10 @@ func CloseDB() error {
 	return nil
 }
 
-// GetDB returns the database connection
 func GetDB() *sql.DB {
 	return db
 }
 
-// createSchema creates the database schema if it doesn't exist
 func createSchema() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS projects (

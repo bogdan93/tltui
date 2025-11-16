@@ -55,7 +55,6 @@ func (m ReportGeneratorModal) Init() tea.Cmd {
 
 func (m ReportGeneratorModal) Update(msg tea.Msg) (ReportGeneratorModal, tea.Cmd) {
 	if m.Generating {
-		// Don't process input while generating
 		return m, nil
 	}
 
@@ -78,7 +77,6 @@ func (m ReportGeneratorModal) Update(msg tea.Msg) (ReportGeneratorModal, tea.Cmd
 			return m, nil
 
 		case "enter":
-			// Generate report based on selected type
 			m.Generating = true
 			return m, m.generateReport()
 		}
@@ -146,18 +144,15 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 }
 
 func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
-	// Calculate date range for the specified month
 	startDate := time.Date(viewYear, time.Month(viewMonth), 1, 0, 0, 0, 0, time.Local)
 	// Last day of month: first day of next month minus one day
 	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
 
-	// Get workhours for the specified month
 	workhours, err := repository.GetWorkhoursByDateRange(startDate, endDate)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workhours: %w", err)
 	}
 
-	// Get workhour details and projects for lookup
 	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		return "", fmt.Errorf("failed to get workhour details: %w", err)
@@ -168,7 +163,6 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 		return "", fmt.Errorf("failed to get projects: %w", err)
 	}
 
-	// Create maps for quick lookup
 	detailsMap := make(map[int]domain.WorkhourDetails)
 	for _, wd := range workhourDetails {
 		detailsMap[wd.ID] = wd
@@ -179,7 +173,6 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 		projectsMap[p.ID] = p
 	}
 
-	// Create temporary file
 	tmpDir := os.TempDir()
 	monthName := time.Month(viewMonth).String()
 	fileName := fmt.Sprintf("odoo_timesheet_%s_%d.csv", monthName, viewYear)
@@ -192,14 +185,12 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 
 	writer := csv.NewWriter(file)
 
-	// Write CSV header
 	header := []string{"date", "account_id/id", "journal_id/id", "name", "unit_amount"}
 	if err := writer.Write(header); err != nil {
 		file.Close()
 		return "", fmt.Errorf("failed to write header: %w", err)
 	}
 
-	// Write data rows
 	for _, wh := range workhours {
 		details, ok := detailsMap[wh.DetailsID]
 		if !ok {
@@ -211,7 +202,6 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 			continue // Skip if project not found
 		}
 
-		// Format: date,account_id/id,journal_id/id,name,unit_amount
 		row := []string{
 			repository.DateToString(wh.Date),
 			fmt.Sprintf("__export__.account_analytic_account_%d", project.OdooID),
@@ -226,7 +216,6 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 		}
 	}
 
-	// Flush and close file BEFORE opening save dialog
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		file.Close()
@@ -234,7 +223,6 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 	}
 	file.Close()
 
-	// Open file save dialog using OS-specific command
 	return openFileSaveDialog(filePath)
 }
 
@@ -249,18 +237,14 @@ func openFileSaveDialog(sourceFile string) (string, error) {
 
 	var cmd *exec.Cmd
 
-	// Platform-specific file save dialog
 	switch {
 	case commandExists("zenity"):
-		// Linux - GTK dialog
 		cmd = exec.Command("zenity", "--file-selection", "--save", "--confirm-overwrite",
 			"--filename="+defaultPath,
 			"--title=Save Odoo CSV Report")
 	case commandExists("kdialog"):
-		// Linux - KDE dialog
 		cmd = exec.Command("kdialog", "--getsavefilename", defaultPath, "*.csv")
 	case commandExists("osascript"):
-		// macOS
 		script := fmt.Sprintf(`
 			set defaultPath to POSIX file "%s"
 			set saveFile to choose file name with prompt "Save Odoo CSV Report" default name "%s" default location (path to home folder)
@@ -268,7 +252,6 @@ func openFileSaveDialog(sourceFile string) (string, error) {
 		`, defaultPath, defaultFileName)
 		cmd = exec.Command("osascript", "-e", script)
 	default:
-		// Fallback: just use the temp file
 		return sourceFile, nil
 	}
 
@@ -283,12 +266,10 @@ func openFileSaveDialog(sourceFile string) (string, error) {
 		return sourceFile, nil
 	}
 
-	// Copy file to selected location
 	if err := copyFile(sourceFile, targetPath); err != nil {
 		return "", fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	// Remove temp file
 	os.Remove(sourceFile)
 
 	return targetPath, nil

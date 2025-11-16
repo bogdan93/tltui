@@ -14,7 +14,6 @@ func RenderModal(termWidth, termHeight int, modalWidth, modalHeight int, content
 		modalHeight = termHeight * 2 / 3
 	}
 
-	// Ensure modal doesn't exceed terminal size
 	if modalWidth > termWidth-4 {
 		modalWidth = termWidth - 4
 	}

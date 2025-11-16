@@ -59,7 +59,6 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 		case "enter":
 			m.ErrorMessage = ""
 
-			// Validate inputs
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
 				m.ErrorMessage = "domain.Project name is required"
@@ -103,7 +102,6 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 		}
 	}
 
-	// Update text inputs when modal is shown
 	if m.FocusedInput == 0 {
 		m.NameInput, cmd = m.NameInput.Update(msg)
 		cmds = append(cmds, cmd)
@@ -129,19 +127,16 @@ func (m *ProjectEditModal) View(Width, Height int) string {
 	sb.WriteString(titleStyle.Render("Edit domain.Project"))
 	sb.WriteString("\n\n")
 
-	// Name input
 	sb.WriteString(labelStyle.Render("Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.NameInput.View())
 	sb.WriteString("\n\n")
 
-	// Odoo ID input
 	sb.WriteString(labelStyle.Render("Odoo ID:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.OdooIDInput.View())
 	sb.WriteString("\n\n")
 
-	// Error message
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).

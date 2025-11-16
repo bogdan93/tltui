@@ -71,7 +71,6 @@ func (m *WorkhourDetailsCreateModal) Update(msg tea.Msg) (WorkhourDetailsCreateM
 				return *m, nil
 			}
 
-			// Clear error and dispatch
 			m.ErrorMessage = ""
 			return *m, tea.Batch(
 				dispatchWorkhourDetailsCreatedMsg(name, shortName, m.IsWork),
@@ -93,7 +92,6 @@ func (m *WorkhourDetailsCreateModal) Update(msg tea.Msg) (WorkhourDetailsCreateM
 			return *m, nil
 
 		case " ":
-			// Toggle IsWork when focused on the checkbox
 			if m.FocusedInput == 2 {
 				m.IsWork = !m.IsWork
 				return *m, nil
@@ -126,26 +124,22 @@ func (m *WorkhourDetailsCreateModal) View(Width, Height int) string {
 	sb.WriteString(titleStyle.Render("Create New Workhour Detail"))
 	sb.WriteString("\n\n")
 
-	// Name input
 	sb.WriteString(labelStyle.Render("Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.NameInput.View())
 	sb.WriteString("\n\n")
 
-	// Short Name input
 	sb.WriteString(labelStyle.Render("Short Name:"))
 	sb.WriteString("\n")
 	sb.WriteString(m.ShortNameInput.View())
 	sb.WriteString("\n")
 
-	// Hint for short name
 	hintStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 	sb.WriteString(hintStyle.Render("Displayed in calendar view • Use emoji only"))
 	sb.WriteString("\n\n")
 
-	// IsWork checkbox
 	sb.WriteString(labelStyle.Render("Is Work:"))
 	sb.WriteString("\n")
 	checkboxStyle := lipgloss.NewStyle().
@@ -161,19 +155,16 @@ func (m *WorkhourDetailsCreateModal) View(Width, Height int) string {
 	}
 	sb.WriteString(checkboxStyle.Render(checkbox))
 
-	// Hint text - subtle and inline (reuse hintStyle from above)
 	hintStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 	if m.FocusedInput == 2 {
 		sb.WriteString(" " + labelStyle.Render("(press Space to toggle)"))
 	} else if m.IsWork {
-		// Only show hint when checkbox is checked
 		sb.WriteString("  " + hintStyle.Render("(included in mail report)"))
 	}
 	sb.WriteString("\n\n")
 
-	// Error message
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
