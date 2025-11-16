@@ -16,6 +16,15 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/johnfercher/maroto/v2"
+	"github.com/johnfercher/maroto/v2/pkg/components/col"
+	"github.com/johnfercher/maroto/v2/pkg/components/row"
+	"github.com/johnfercher/maroto/v2/pkg/components/text"
+	"github.com/johnfercher/maroto/v2/pkg/config"
+	"github.com/johnfercher/maroto/v2/pkg/consts/align"
+	"github.com/johnfercher/maroto/v2/pkg/consts/border"
+	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
+	"github.com/johnfercher/maroto/v2/pkg/props"
 )
 
 type ReportType int
@@ -36,7 +45,8 @@ type ReportGeneratorModal struct {
 	ShowingInputForm bool                       // True when showing From/To company inputs
 	FromCompanyInput textinput.Model            // "From Company" text input
 	ToCompanyInput   textinput.Model            // "To Company" text input
-	FocusedInput     int                        // 0 = FromCompany, 1 = ToCompany, 2+ = checkbox items
+	InvoiceNameInput textinput.Model            // "Invoice Name" text input
+	FocusedInput     int                        // 0 = FromCompany, 1 = ToCompany, 2 = InvoiceName, 3+ = checkbox items
 	PreviewStats     *WorkhourStats             // Cached stats for preview display
 	SelectedItems    map[string]map[string]bool // project -> activity -> selected
 	FocusedItemIndex int                        // Index of focused checkbox item in the flattened list
@@ -61,6 +71,11 @@ func NewReportGeneratorModal(viewMonth, viewYear int) *ReportGeneratorModal {
 	toCompanyInput.CharLimit = 64
 	toCompanyInput.Width = 40
 
+	invoiceNameInput := textinput.New()
+	invoiceNameInput.Placeholder = "Invoice Name"
+	invoiceNameInput.CharLimit = 64
+	invoiceNameInput.Width = 40
+
 	return &ReportGeneratorModal{
 		SelectedReportType: 0,
 		ReportTypes:        []string{"Odoo CSV", "Mail Report"},
@@ -70,6 +85,7 @@ func NewReportGeneratorModal(viewMonth, viewYear int) *ReportGeneratorModal {
 		ShowingInputForm:   false,
 		FromCompanyInput:   fromCompanyInput,
 		ToCompanyInput:     toCompanyInput,
+		InvoiceNameInput:   invoiceNameInput,
 		FocusedInput:       0,
 		PreviewStats:       nil,
 		SelectedItems:      make(map[string]map[string]bool),
@@ -110,13 +126,13 @@ func (m ReportGeneratorModal) Update(msg tea.Msg) (ReportGeneratorModal, tea.Cmd
 
 		case "enter":
 			if m.ReportTypes[m.SelectedReportType] == "Mail Report" {
-			m.ShowingInputForm = true
-			m.FocusedInput = 0
-			m.FocusedItemIndex = -1
-			m.PreviewStats = m.calculatePreviewStats()
-			m.initializeSelectedItems()
-			m.updateInputFocus()
-			return m, nil
+				m.ShowingInputForm = true
+				m.FocusedInput = 0
+				m.FocusedItemIndex = -1
+				m.PreviewStats = m.calculatePreviewStats()
+				m.initializeSelectedItems()
+				m.updateInputFocus()
+				return m, nil
 			}
 			m.Generating = true
 			return m, m.generateReport()
@@ -216,6 +232,14 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 				return m, nil
 			}
 
+			invoiceName := strings.TrimSpace(m.InvoiceNameInput.Value())
+			if invoiceName == "" {
+				m.ErrorMessage = "Invoice Name is required"
+				m.FocusedInput = 2
+				m.updateInputFocus()
+				return m, nil
+			}
+
 			m.ShowingInputForm = false
 			m.Generating = true
 			return m, m.generateReport()
@@ -224,6 +248,7 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			m.ShowingInputForm = false
 			m.FromCompanyInput.SetValue("")
 			m.ToCompanyInput.SetValue("")
+			m.InvoiceNameInput.SetValue("")
 			m.FocusedInput = 0
 			m.FocusedItemIndex = -1
 			m.ErrorMessage = ""
@@ -232,10 +257,13 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 		case "tab", "down", "j":
 			if m.FocusedInput < 2 {
 				m.FocusedInput++
-				if m.FocusedInput == 2 && totalCheckboxItems > 0 {
-					m.FocusedItemIndex = 0
-				}
 				m.updateInputFocus()
+			} else if m.FocusedInput == 2 {
+				if totalCheckboxItems > 0 {
+					m.FocusedInput = 3
+					m.FocusedItemIndex = 0
+					m.updateInputFocus()
+				}
 			} else {
 				if m.FocusedItemIndex < totalCheckboxItems-1 {
 					m.FocusedItemIndex++
@@ -244,10 +272,10 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			return m, nil
 
 		case "shift+tab", "up", "k":
-			if m.FocusedInput == 2 && m.FocusedItemIndex > 0 {
+			if m.FocusedInput == 3 && m.FocusedItemIndex > 0 {
 				m.FocusedItemIndex--
-			} else if m.FocusedInput == 2 && m.FocusedItemIndex == 0 {
-				m.FocusedInput = 1
+			} else if m.FocusedInput == 3 && m.FocusedItemIndex == 0 {
+				m.FocusedInput = 2
 				m.FocusedItemIndex = -1
 				m.updateInputFocus()
 			} else if m.FocusedInput > 0 {
@@ -257,10 +285,10 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			return m, nil
 
 		case " ":
-			if m.FocusedInput == 2 && m.FocusedItemIndex >= 0 {
+			if m.FocusedInput == 3 && m.FocusedItemIndex >= 0 {
 				m.toggleCheckboxAtIndex(m.FocusedItemIndex)
+				return m, nil
 			}
-			return m, nil
 		}
 	}
 
@@ -269,6 +297,9 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 		cmds = append(cmds, cmd)
 	} else if m.FocusedInput == 1 {
 		m.ToCompanyInput, cmd = m.ToCompanyInput.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.FocusedInput == 2 {
+		m.InvoiceNameInput, cmd = m.InvoiceNameInput.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -279,12 +310,19 @@ func (m *ReportGeneratorModal) updateInputFocus() {
 	if m.FocusedInput == 0 {
 		m.FromCompanyInput.Focus()
 		m.ToCompanyInput.Blur()
+		m.InvoiceNameInput.Blur()
 	} else if m.FocusedInput == 1 {
 		m.FromCompanyInput.Blur()
 		m.ToCompanyInput.Focus()
+		m.InvoiceNameInput.Blur()
+	} else if m.FocusedInput == 2 {
+		m.FromCompanyInput.Blur()
+		m.ToCompanyInput.Blur()
+		m.InvoiceNameInput.Focus()
 	} else {
 		m.FromCompanyInput.Blur()
 		m.ToCompanyInput.Blur()
+		m.InvoiceNameInput.Blur()
 	}
 }
 
@@ -428,6 +466,11 @@ func (m ReportGeneratorModal) renderInputForm(width, height int) string {
 	sb.WriteString(m.ToCompanyInput.View())
 	sb.WriteString("\n\n")
 
+	sb.WriteString(labelStyle.Render("Invoice Name:"))
+	sb.WriteString("\n")
+	sb.WriteString(m.InvoiceNameInput.View())
+	sb.WriteString("\n\n")
+
 	if m.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
@@ -518,7 +561,7 @@ func (m ReportGeneratorModal) renderStatsPreview() string {
 						checkbox = "[✓]"
 					}
 
-					isFocused := m.FocusedInput == 2 && m.FocusedItemIndex == currentIndex
+					isFocused := m.FocusedInput == 3 && m.FocusedItemIndex == currentIndex
 
 					prefix := "    "
 					if isFocused {
@@ -561,7 +604,8 @@ func (m ReportGeneratorModal) generateReport() tea.Cmd {
 		case int(ReportTypeMailReport):
 			fromCompany := strings.TrimSpace(m.FromCompanyInput.Value())
 			toCompany := strings.TrimSpace(m.ToCompanyInput.Value())
-			filePath, err := generateMailReport(m.ViewMonth, m.ViewYear, fromCompany, toCompany, m.SelectedItems)
+			invoiceName := strings.TrimSpace(m.InvoiceNameInput.Value())
+			filePath, err := generateMailReport(m.ViewMonth, m.ViewYear, fromCompany, toCompany, invoiceName, m.SelectedItems)
 			if err != nil {
 				return ReportGenerationFailedMsg{Error: err}
 			}
@@ -904,7 +948,217 @@ func formatMailReport(
 	return sb.String()
 }
 
-func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany string, selectedItems map[string]map[string]bool) (string, error) {
+func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, toCompany, invoiceName string, stats WorkhourStats) error {
+	cfg := config.NewBuilder().
+		WithPageNumber().
+		Build()
+
+	m := maroto.New(cfg)
+	monthName := time.Month(viewMonth).String()
+
+	err := m.RegisterHeader(
+		row.New(5),
+		row.New(10).Add(
+			text.NewCol(12, "Raport de activitate", props.Text{
+				Top:   3,
+				Size:  16,
+				Style: fontstyle.Bold,
+				Align: align.Center,
+			}),
+		),
+		row.New(15),
+		row.New(5).Add(
+			text.NewCol(4, "Firma prestatoare:", props.Text{
+				Size:  10,
+				Top:   1,
+				Style: fontstyle.Bold,
+			}),
+			text.NewCol(8, fromCompany, props.Text{
+				Size: 10,
+				Top:  1,
+			}),
+		),
+		row.New(5).Add(
+			text.NewCol(4, "Catre:", props.Text{
+				Size:  10,
+				Top:   1,
+				Style: fontstyle.Bold,
+			}),
+			text.NewCol(8, toCompany, props.Text{
+				Size: 10,
+				Top:  1,
+			}),
+		),
+		row.New(5).Add(
+			text.NewCol(4, "Referitor la factura numarul:", props.Text{
+				Size:  10,
+				Top:   1,
+				Style: fontstyle.Bold,
+			}),
+			text.NewCol(8, fmt.Sprintf("%s - %s %d", invoiceName, monthName, viewYear), props.Text{
+				Size: 10,
+				Top:  1,
+			}),
+		),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to register header: %w", err)
+	}
+
+	m.AddRow(30)
+
+	m.AddRow(8,
+		text.NewCol(12, "Raport de ore lucrate", props.Text{
+			Top:   2,
+			Size:  11,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+		}),
+	)
+
+	tableHeaders := []string{"Data", "Project", "Descriere", "Ore lucrate"}
+	var tableRows [][]string
+
+	dates := make([]string, 0, len(stats.DailyBreakdown))
+	for date := range stats.DailyBreakdown {
+		dates = append(dates, date)
+	}
+	sort.Strings(dates)
+
+	totalHours := 0.0
+	for _, dateStr := range dates {
+		entries := stats.DailyBreakdown[dateStr]
+
+		for _, entry := range entries {
+			tableRows = append(tableRows, []string{
+				dateStr,
+				entry.ProjectName,
+				entry.ActivityName,
+				fmt.Sprintf("%.0f", entry.Hours),
+			})
+			totalHours += entry.Hours
+		}
+	}
+
+	tableRows = append(tableRows, []string{
+		"",
+		"",
+		"",
+		fmt.Sprintf("%.0f", totalHours),
+	})
+
+	darkBlue := &props.Color{Red: 54, Green: 69, Blue: 92}
+	lightBlue := &props.Color{Red: 207, Green: 226, Blue: 243}
+	white := &props.Color{Red: 255, Green: 255, Blue: 255}
+	black := &props.Color{Red: 0, Green: 0, Blue: 0}
+
+	headerCellStyle := &props.Cell{
+		BackgroundColor: darkBlue,
+		BorderType:      border.Full,
+		BorderColor:     black,
+		BorderThickness: 0.5,
+	}
+
+	m.AddRow(7,
+		col.New(3).Add(text.New(tableHeaders[0], props.Text{
+			Top:   1.5,
+			Size:  9,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+			Color: white,
+		})).WithStyle(headerCellStyle),
+		col.New(3).Add(text.New(tableHeaders[1], props.Text{
+			Top:   1.5,
+			Size:  9,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+			Color: white,
+		})).WithStyle(headerCellStyle),
+		col.New(3).Add(text.New(tableHeaders[2], props.Text{
+			Top:   1.5,
+			Size:  9,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+			Color: white,
+		})).WithStyle(headerCellStyle),
+		col.New(3).Add(text.New(tableHeaders[3], props.Text{
+			Top:   1.5,
+			Size:  9,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+			Color: white,
+		})).WithStyle(headerCellStyle),
+	)
+
+	for i, rowData := range tableRows {
+		backgroundColor := white
+		isLastRow := i == len(tableRows)-1
+
+		if isLastRow {
+			backgroundColor = lightBlue
+		} else if i%2 == 1 {
+			backgroundColor = lightBlue
+		}
+
+		cellStyle := &props.Cell{
+			BackgroundColor: backgroundColor,
+			BorderType:      border.Full,
+			BorderColor:     black,
+			BorderThickness: 0.5,
+		}
+
+		m.AddRow(6,
+			col.New(3).Add(text.New(rowData[0], props.Text{
+				Top:   1,
+				Size:  8,
+				Align: align.Center,
+			})).WithStyle(cellStyle),
+			col.New(3).Add(text.New(rowData[1], props.Text{
+				Top:   1,
+				Size:  8,
+				Align: align.Center,
+			})).WithStyle(cellStyle),
+			col.New(3).Add(text.New(rowData[2], props.Text{
+				Top:   1,
+				Size:  8,
+				Align: align.Center,
+			})).WithStyle(cellStyle),
+			col.New(3).Add(text.New(rowData[3], props.Text{
+				Top:   1,
+				Size:  8,
+				Align: align.Center,
+			})).WithStyle(cellStyle),
+		)
+	}
+
+	m.AddRow(20,
+		text.NewCol(6, "Semnatura Prestator,", props.Text{
+			Size:  10,
+			Top:   2,
+			Align: align.Left,
+		}),
+		text.NewCol(6, "Semnatura Beneficiar,", props.Text{
+			Size:  10,
+			Top:   2,
+			Align: align.Right,
+		}),
+	)
+
+	document, err := m.Generate()
+	if err != nil {
+		return fmt.Errorf("failed to generate PDF document: %w", err)
+	}
+
+	err = document.Save(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to save PDF file: %w", err)
+	}
+
+	return nil
+}
+
+func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany, invoiceName string, selectedItems map[string]map[string]bool) (string, error) {
 	startDate := time.Date(viewYear, time.Month(viewMonth), 1, 0, 0, 0, 0, time.Local)
 	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
 
@@ -947,16 +1201,14 @@ func generateMailReport(viewMonth, viewYear int, fromCompany, toCompany string, 
 
 	stats := calculateWorkhourStats(filteredWorkhours, detailsMap, projectsMap)
 
-	reportContent := formatMailReport(viewMonth, viewYear, fromCompany, toCompany, stats)
-
 	tmpDir := os.TempDir()
 	monthName := time.Month(viewMonth).String()
-	fileName := fmt.Sprintf("mail_report_%s_%d.txt", strings.ToLower(monthName), viewYear)
+	fileName := fmt.Sprintf("raport_activitate_%s_%d.pdf", strings.ToLower(monthName), viewYear)
 	filePath := filepath.Join(tmpDir, fileName)
 
-	err = os.WriteFile(filePath, []byte(reportContent), 0644)
+	err = generatePDFReport(filePath, viewMonth, viewYear, fromCompany, toCompany, invoiceName, stats)
 	if err != nil {
-		return "", fmt.Errorf("failed to write report file: %w", err)
+		return "", fmt.Errorf("failed to generate PDF: %w", err)
 	}
 
 	savePath, err := openMailReportSaveDialog(filePath)
@@ -992,7 +1244,7 @@ func openMailReportSaveDialog(sourceFile string) (string, error) {
 			"--filename="+defaultPath,
 			"--title=Save Mail Report")
 	case commandExists("kdialog"):
-		cmd = exec.Command("kdialog", "--getsavefilename", defaultPath, "*.txt")
+		cmd = exec.Command("kdialog", "--getsavefilename", defaultPath, "*.pdf")
 	case commandExists("osascript"):
 		script := fmt.Sprintf(`
 			set defaultPath to POSIX file "%s"
