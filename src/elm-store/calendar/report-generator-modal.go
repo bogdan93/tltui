@@ -48,7 +48,7 @@ type ReportGeneratorModal struct {
 	ToCompanyInput     textinput.Model            // "To Company" text input
 	InvoiceNameInput   textinput.Model            // "Invoice Name" text input
 	SignatureImagePath string                     // Path to signature image file
-	FocusedInput       int                        // 0 = FromCompany, 1 = ToCompany, 2 = InvoiceName, 3+ = checkbox items
+	FocusedInput       int                        // 0 = FromCompany, 1 = ToCompany, 2 = InvoiceName, 3 = SignatureImage, 4+ = checkbox items
 	PreviewStats       *WorkhourStats             // Cached stats for preview display
 	SelectedItems      map[string]map[string]bool // project -> activity -> selected
 	FocusedItemIndex   int                        // Index of focused checkbox item in the flattened list
@@ -167,12 +167,28 @@ func (m *ReportGeneratorModal) initializeSelectedItems() {
 		return
 	}
 
+	// Get workhour details to check IsWork property
+	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
+	if err != nil {
+		return
+	}
+
+	detailsMap := make(map[string]domain.WorkhourDetails)
+	for _, wd := range workhourDetails {
+		detailsMap[wd.Name] = wd
+	}
+
 	m.SelectedItems = make(map[string]map[string]bool)
 
 	for projectName, activities := range m.PreviewStats.ProjectActivityHours {
 		m.SelectedItems[projectName] = make(map[string]bool)
 		for activityName := range activities {
-			m.SelectedItems[projectName][activityName] = true
+			// Only preselect if IsWork is true
+			if detail, exists := detailsMap[activityName]; exists && detail.IsWork {
+				m.SelectedItems[projectName][activityName] = true
+			} else {
+				m.SelectedItems[projectName][activityName] = false
+			}
 		}
 	}
 }
@@ -261,14 +277,13 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			return m, nil
 
 		case "tab", "down", "j":
-			if m.FocusedInput < 2 {
+			if m.FocusedInput < 3 {
 				m.FocusedInput++
 				m.updateInputFocus()
-			} else if m.FocusedInput == 2 {
+			} else if m.FocusedInput == 3 {
 				if totalCheckboxItems > 0 {
-					m.FocusedInput = 3
+					m.FocusedInput = 4
 					m.FocusedItemIndex = 0
-					m.updateInputFocus()
 				}
 			} else {
 				if m.FocusedItemIndex < totalCheckboxItems-1 {
@@ -278,10 +293,10 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			return m, nil
 
 		case "shift+tab", "up", "k":
-			if m.FocusedInput == 3 && m.FocusedItemIndex > 0 {
+			if m.FocusedInput == 4 && m.FocusedItemIndex > 0 {
 				m.FocusedItemIndex--
-			} else if m.FocusedInput == 3 && m.FocusedItemIndex == 0 {
-				m.FocusedInput = 2
+			} else if m.FocusedInput == 4 && m.FocusedItemIndex == 0 {
+				m.FocusedInput = 3
 				m.FocusedItemIndex = -1
 				m.updateInputFocus()
 			} else if m.FocusedInput > 0 {
@@ -291,13 +306,15 @@ func (m ReportGeneratorModal) handleInputForm(msg tea.Msg) (ReportGeneratorModal
 			return m, nil
 
 		case " ":
-			if m.FocusedInput == 3 && m.FocusedItemIndex >= 0 {
+			if m.FocusedInput == 4 && m.FocusedItemIndex >= 0 {
 				m.toggleCheckboxAtIndex(m.FocusedItemIndex)
 				return m, nil
 			}
 
 		case "s":
-			return m, openImageFileDialog()
+			if m.FocusedInput == 3 {
+				return m, openImageFileDialog()
+			}
 		}
 
 	case SignatureImageSelectedMsg:
@@ -488,16 +505,28 @@ func (m ReportGeneratorModal) renderInputForm(width, height int) string {
 
 	sb.WriteString(labelStyle.Render("Signature Image:"))
 	sb.WriteString("\n")
+
+	isFocused := m.FocusedInput == 3
+
 	if m.SignatureImagePath != "" {
 		imageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("34"))
+		if isFocused {
+			imageStyle = imageStyle.Bold(true)
+		}
 		sb.WriteString(imageStyle.Render("✓ " + filepath.Base(m.SignatureImagePath)))
 	} else {
 		noImageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		if isFocused {
+			noImageStyle = noImageStyle.Bold(true)
+		}
 		sb.WriteString(noImageStyle.Render("No image selected"))
 	}
 	sb.WriteString("\n")
-	buttonStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39"))
-	sb.WriteString(buttonStyle.Render("[Press 's' to select image]"))
+
+	if isFocused {
+		buttonStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)
+		sb.WriteString(buttonStyle.Render("[Press 's' to select image]"))
+	}
 	sb.WriteString("\n\n")
 
 	if m.ErrorMessage != "" {
@@ -590,7 +619,7 @@ func (m ReportGeneratorModal) renderStatsPreview() string {
 						checkbox = "[✓]"
 					}
 
-					isFocused := m.FocusedInput == 3 && m.FocusedItemIndex == currentIndex
+					isFocused := m.FocusedInput == 4 && m.FocusedItemIndex == currentIndex
 
 					prefix := "    "
 					if isFocused {
@@ -1078,7 +1107,7 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 		}),
 	)
 
-	tableHeaders := []string{"Data", "Project", "Descriere", "Ore lucrate"}
+	tableHeaders := []string{"Data", "Proiect", "Descriere", "Ore lucrate"}
 	var tableRows [][]string
 
 	dates := make([]string, 0, len(stats.DailyBreakdown))
@@ -1200,16 +1229,18 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 		)
 	}
 
-	m.AddRow(20,
+	m.AddRow(10,
 		text.NewCol(6, "Semnatura Prestator,", props.Text{
 			Size:  10,
-			Top:   2,
+			Top:   4,
 			Align: align.Left,
+			Style: fontstyle.Bold,
 		}),
 		text.NewCol(6, "Semnatura Beneficiar,", props.Text{
 			Size:  10,
-			Top:   2,
+			Top:   4,
 			Align: align.Right,
+			Style: fontstyle.Bold,
 		}),
 	)
 
