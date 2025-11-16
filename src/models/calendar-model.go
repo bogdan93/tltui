@@ -19,11 +19,11 @@ type CalendarModel struct {
 
 	WorkhoursViewModal     *WorkhoursViewModal
 	ReportGeneratorModal   *ReportGeneratorModal
-	ShowHelp               bool // Show help modal
+	ShowHelp               bool
 
 	// Copy/Paste clipboard
-	YankedWorkhours []Workhour // Workhours copied from a day
-	YankedFromDate  time.Time  // The date they were copied from (for feedback)
+	YankedWorkhours []Workhour
+	YankedFromDate  time.Time 
 }
 
 func NewCalendarModel() CalendarModel {
@@ -50,17 +50,14 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ReportGeneratedMsg:
-		// Report generated successfully, close modal
 		m.ReportGeneratorModal = nil
 		return m, nil
 
 	case ReportGenerationFailedMsg:
-		// Report generation failed, close modal and show error
 		m.ReportGeneratorModal = nil
 		return m, DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
 
 	case WorkhourCreatedMsg:
-		// Add new workhour to the database
 		newWorkhour := Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
@@ -72,7 +69,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
 		}
 
-		// Update the modal's workhours to show the new entry
 		if m.WorkhoursViewModal != nil {
 			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
 		}
@@ -80,7 +76,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourEditedMsg:
-		// Update the workhour in the database
 		updatedWorkhour := Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
@@ -92,7 +87,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
 
-		// Update the modal's workhours to show the updated entry
 		if m.WorkhoursViewModal != nil {
 			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
 		}
@@ -100,16 +94,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDeletedMsg:
-		// Delete the workhour from the database
 		err := DeleteWorkhour(msg.ID)
 		if err != nil {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
 		}
 
-		// Update the modal's workhours to show the updated list
 		if m.WorkhoursViewModal != nil {
 			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
-			// Adjust selected index if needed
 			if m.WorkhoursViewModal.SelectedWorkhourIndex >= len(m.WorkhoursViewModal.Workhours) && len(m.WorkhoursViewModal.Workhours) > 0 {
 				m.WorkhoursViewModal.SelectedWorkhourIndex = len(m.WorkhoursViewModal.Workhours) - 1
 			}
@@ -123,7 +114,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Handle help modal
 		if m.ShowHelp {
 			switch msg.String() {
 			case "?", "esc", "q":
@@ -133,20 +123,17 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Handle help modal toggle when not open
 		if msg.String() == "?" {
 			m.ShowHelp = true
 			return m, nil
 		}
 
-		// Don't handle navigation keys if modal is open
 		if m.WorkhoursViewModal != nil || m.ReportGeneratorModal != nil {
 			break
 		}
 
 		switch msg.String() {
 		case "left", "h":
-			// Move selection left one day (clamped to visible grid)
 			newDate := m.SelectedDate.AddDate(0, 0, -1)
 			if m.isDateInVisibleGrid(newDate) {
 				m.SelectedDate = newDate
@@ -154,7 +141,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "right", "l":
-			// Move selection right one day (clamped to visible grid)
 			newDate := m.SelectedDate.AddDate(0, 0, 1)
 			if m.isDateInVisibleGrid(newDate) {
 				m.SelectedDate = newDate
@@ -162,7 +148,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "up", "k":
-			// Move selection up one week (clamped to visible grid)
 			newDate := m.SelectedDate.AddDate(0, 0, -7)
 			if m.isDateInVisibleGrid(newDate) {
 				m.SelectedDate = newDate
@@ -170,7 +155,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "down", "j":
-			// Move selection down one week (clamped to visible grid)
 			newDate := m.SelectedDate.AddDate(0, 0, 7)
 			if m.isDateInVisibleGrid(newDate) {
 				m.SelectedDate = newDate
@@ -178,43 +162,36 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "<":
-			// Previous month - move selected date and update view
 			m.SelectedDate = m.SelectedDate.AddDate(0, -1, 0)
 			m.ViewMonth = int(m.SelectedDate.Month())
 			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case ">":
-			// Next month - move selected date and update view
 			m.SelectedDate = m.SelectedDate.AddDate(0, 1, 0)
 			m.ViewMonth = int(m.SelectedDate.Month())
 			m.ViewYear = m.SelectedDate.Year()
 			return m, nil
 
 		case "r":
-			// Reset to current month
 			m.ResetToCurrentMonth()
 			return m, nil
 
 		case "y":
-			// Yank (copy) workhours from selected date
 			m.YankedWorkhours = m.getWorkhoursForDate(m.SelectedDate)
 			m.YankedFromDate = m.SelectedDate
 			return m, nil
 
 		case "p":
-			// Paste copied workhours to selected date (replaces existing)
 			if len(m.YankedWorkhours) == 0 {
 				return m, nil
 			}
 
-			// First, delete all existing workhours for the selected date from database
 			err := DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
 			}
 
-			// Then add the copied workhours with the new date to database
 			for _, wh := range m.YankedWorkhours {
 				newWorkhour := Workhour{
 					Date:      m.SelectedDate,
@@ -230,7 +207,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "d":
-			// Delete all workhours for selected date
 			err := DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
@@ -238,14 +214,12 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "g":
-			// Open report generator modal
 			if m.ReportGeneratorModal == nil {
 				m.ReportGeneratorModal = NewReportGeneratorModal(m.ViewMonth, m.ViewYear)
 				return m, nil
 			}
 
 		case "enter":
-			// Open workhours view modal for selected date
 			if m.WorkhoursViewModal == nil {
 				workhours := m.getWorkhoursForDate(m.SelectedDate)
 				workhourDetails, _ := GetAllWorkhourDetailsFromDB()
@@ -261,7 +235,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Route messages to modals if open
 	if m.ReportGeneratorModal != nil {
 		updatedModal, cmd := m.ReportGeneratorModal.Update(msg)
 		m.ReportGeneratorModal = &updatedModal
@@ -277,12 +250,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m CalendarModel) View() string {
-	// Show help modal if open
 	if m.ShowHelp {
 		return m.renderHelpModal()
 	}
 
-	// Show modals if open (replaces calendar view)
 	if m.ReportGeneratorModal != nil {
 		return m.ReportGeneratorModal.View(m.Width, m.Height)
 	}

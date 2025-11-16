@@ -52,7 +52,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case ShowNotificationMsg:
-		// Show notification and set timeout to clear it
 		m.Notification = &Notification{
 			Message: msg.Message,
 			Type:    msg.Type,
@@ -60,7 +59,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, StartNotificationTimeout(3 * time.Second)
 
 	case ClearNotificationMsg:
-		// Clear notification
 		m.Notification = nil
 		return m, nil
 
@@ -81,7 +79,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd1, cmd2, cmd3)
 
 	case tea.KeyMsg:
-		// Check if any modal is open
 		isModalOpen := m.Calendar.WorkhoursViewModal != nil ||
 			m.Calendar.ReportGeneratorModal != nil ||
 			m.Calendar.ShowHelp ||
@@ -94,22 +91,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
-			// If a modal is open, let it handle the quit key to close itself
 			if !isModalOpen {
 				return m, tea.Quit
 			}
 		case "1", "2", "3":
-			// Don't handle tab switching if any modal is open
 			if isModalOpen {
-				// Modal is open, let the number key pass through to the modal
 				break
 			}
 
-			// No modal open, handle tab switching
 			switch msg.String() {
 			case "1":
 				m.Mode = ModeViewCalendar
-				// Reset calendar to current month when switching to it
 				m.Calendar.ResetToCurrentMonth()
 				return m, nil
 			case "2":
