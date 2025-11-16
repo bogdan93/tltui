@@ -1,21 +1,22 @@
-package models
+package repository
 
 import (
 	"fmt"
 	"time"
+	"tltui/src/domain"
 )
 
 // GetAllWorkhours retrieves all workhours from the database
-func GetAllWorkhours() ([]Workhour, error) {
+func GetAllWorkhours() ([]domain.Workhour, error) {
 	rows, err := db.Query("SELECT id, date, details_id, project_id, hours FROM workhours ORDER BY date DESC")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query workhours: %w", err)
 	}
 	defer rows.Close()
 
-	var workhours []Workhour
+	var workhours []domain.Workhour
 	for rows.Next() {
-		var wh Workhour
+		var wh domain.Workhour
 		var dateStr string
 		if err := rows.Scan(&wh.ID, &dateStr, &wh.DetailsID, &wh.ProjectID, &wh.Hours); err != nil {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
@@ -38,7 +39,7 @@ func GetAllWorkhours() ([]Workhour, error) {
 }
 
 // GetWorkhoursByDate retrieves all workhours for a specific date
-func GetWorkhoursByDate(date time.Time) ([]Workhour, error) {
+func GetWorkhoursByDate(date time.Time) ([]domain.Workhour, error) {
 	dateStr := DateToString(date)
 	rows, err := db.Query(
 		"SELECT id, date, details_id, project_id, hours FROM workhours WHERE date = ? ORDER BY id",
@@ -49,9 +50,9 @@ func GetWorkhoursByDate(date time.Time) ([]Workhour, error) {
 	}
 	defer rows.Close()
 
-	var workhours []Workhour
+	var workhours []domain.Workhour
 	for rows.Next() {
-		var wh Workhour
+		var wh domain.Workhour
 		var dbDateStr string
 		if err := rows.Scan(&wh.ID, &dbDateStr, &wh.DetailsID, &wh.ProjectID, &wh.Hours); err != nil {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
@@ -74,7 +75,7 @@ func GetWorkhoursByDate(date time.Time) ([]Workhour, error) {
 }
 
 // GetWorkhoursByDateRange retrieves all workhours within a date range
-func GetWorkhoursByDateRange(start, end time.Time) ([]Workhour, error) {
+func GetWorkhoursByDateRange(start, end time.Time) ([]domain.Workhour, error) {
 	startStr := DateToString(start)
 	endStr := DateToString(end)
 
@@ -87,9 +88,9 @@ func GetWorkhoursByDateRange(start, end time.Time) ([]Workhour, error) {
 	}
 	defer rows.Close()
 
-	var workhours []Workhour
+	var workhours []domain.Workhour
 	for rows.Next() {
-		var wh Workhour
+		var wh domain.Workhour
 		var dateStr string
 		if err := rows.Scan(&wh.ID, &dateStr, &wh.DetailsID, &wh.ProjectID, &wh.Hours); err != nil {
 			return nil, fmt.Errorf("failed to scan workhour: %w", err)
@@ -112,7 +113,7 @@ func GetWorkhoursByDateRange(start, end time.Time) ([]Workhour, error) {
 }
 
 // CreateWorkhour inserts a new workhour into the database
-func CreateWorkhour(workhour Workhour) (int, error) {
+func CreateWorkhour(workhour domain.Workhour) (int, error) {
 	dateStr := DateToString(workhour.Date)
 
 	result, err := db.Exec(
@@ -132,7 +133,7 @@ func CreateWorkhour(workhour Workhour) (int, error) {
 }
 
 // UpdateWorkhour updates an existing workhour
-func UpdateWorkhour(id int, workhour Workhour) error {
+func UpdateWorkhour(id int, workhour domain.Workhour) error {
 	dateStr := DateToString(workhour.Date)
 
 	result, err := db.Exec(

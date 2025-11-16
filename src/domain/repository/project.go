@@ -1,21 +1,22 @@
-package models
+package repository
 
 import (
 	"database/sql"
 	"fmt"
+	"tltui/src/domain"
 )
 
 // GetAllProjectsFromDB retrieves all projects from the database
-func GetAllProjectsFromDB() ([]Project, error) {
+func GetAllProjectsFromDB() ([]domain.Project, error) {
 	rows, err := db.Query("SELECT id, odoo_id, name FROM projects ORDER BY id")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query projects: %w", err)
 	}
 	defer rows.Close()
 
-	var projects []Project
+	var projects []domain.Project
 	for rows.Next() {
-		var p Project
+		var p domain.Project
 		if err := rows.Scan(&p.ID, &p.OdooID, &p.Name); err != nil {
 			return nil, fmt.Errorf("failed to scan project: %w", err)
 		}
@@ -30,8 +31,8 @@ func GetAllProjectsFromDB() ([]Project, error) {
 }
 
 // GetProjectByID retrieves a single project by ID
-func GetProjectByID(id int) (*Project, error) {
-	var p Project
+func GetProjectByID(id int) (*domain.Project, error) {
+	var p domain.Project
 	err := db.QueryRow("SELECT id, odoo_id, name FROM projects WHERE id = ?", id).
 		Scan(&p.ID, &p.OdooID, &p.Name)
 
@@ -46,7 +47,7 @@ func GetProjectByID(id int) (*Project, error) {
 }
 
 // CreateProject inserts a new project into the database
-func CreateProject(project Project) error {
+func CreateProject(project domain.Project) error {
 	_, err := db.Exec(
 		"INSERT INTO projects (id, odoo_id, name) VALUES (?, ?, ?)",
 		project.ID, project.OdooID, project.Name,
@@ -58,7 +59,7 @@ func CreateProject(project Project) error {
 }
 
 // UpdateProject updates an existing project
-func UpdateProject(project Project) error {
+func UpdateProject(project domain.Project) error {
 	result, err := db.Exec(
 		"UPDATE projects SET odoo_id = ?, name = ? WHERE id = ?",
 		project.OdooID, project.Name, project.ID,
@@ -110,7 +111,7 @@ func SeedProjects() error {
 		return nil
 	}
 
-	projects := FetchAllProjects()
+	projects := fetchAllProjects()
 	for _, p := range projects {
 		if err := CreateProject(p); err != nil {
 			return fmt.Errorf("failed to seed project: %w", err)

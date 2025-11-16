@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"tltui/src/domain/repository"
 	"tltui/src/models"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,19 +20,19 @@ func initModel() models.AppModel {
 
 func main() {
 	// Initialize database
-	if err := models.InitDB(); err != nil {
+	if err := repository.InitDB(); err != nil {
 		fmt.Printf("Failed to initialize database: %v\n", err)
 		os.Exit(1)
 	}
-	defer models.CloseDB()
+	defer repository.CloseDB()
 
 	// Seed initial data (projects and workhour details)
-	if err := models.SeedProjects(); err != nil {
+	if err := repository.SeedProjects(); err != nil {
 		fmt.Printf("Failed to seed projects: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := models.SeedWorkhourDetails(); err != nil {
+	if err := repository.SeedWorkhourDetails(); err != nil {
 		fmt.Printf("Failed to seed workhour details: %v\n", err)
 		os.Exit(1)
 	}

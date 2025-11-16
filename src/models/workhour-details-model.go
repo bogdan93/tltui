@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -28,7 +29,7 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 	m := WorkhourDetailsModel{}
 
 	// Load from database
-	workhourDetails, err := GetAllWorkhourDetailsFromDB()
+	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		// Fallback to empty if error
 		workhourDetails = []WorkhourDetails{}
@@ -110,14 +111,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Save to database
-		err := CreateWorkhourDetails(newWorkhourDetail)
+		err := repository.CreateWorkhourDetails(newWorkhourDetail)
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
 		}
 
 		// Reload from database
-		details, err := GetAllWorkhourDetailsFromDB()
+		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsCreateModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
@@ -149,14 +150,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case WorkhourDetailsDeletedMsg:
 		// Delete from database
-		err := DeleteWorkhourDetails(msg.WorkhourDetailID)
+		err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
 		}
 
 		// Reload from database
-		details, err := GetAllWorkhourDetailsFromDB()
+		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsDeleteModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
@@ -193,14 +194,14 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ShortName: msg.ShortName,
 			IsWork:    msg.IsWork,
 		}
-		err := UpdateWorkhourDetails(updatedWorkhourDetail)
+		err := repository.UpdateWorkhourDetails(updatedWorkhourDetail)
 		if err != nil {
 			m.WorkhourDetailsEditModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
 		}
 
 		// Reload from database
-		details, err := GetAllWorkhourDetailsFromDB()
+		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
 			m.WorkhourDetailsEditModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))

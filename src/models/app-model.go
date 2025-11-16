@@ -2,25 +2,16 @@ package models
 
 import (
 	"time"
+	"tltui/src/domain"
 	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type WorkhourDetails struct {
-	ID        int
-	Name      string
-	ShortName string
-	IsWork    bool
-}
-
-type Workhour struct {
-	ID        int
-	Date      time.Time
-	DetailsID int
-	ProjectID int
-	Hours     float64
-}
+// Re-export domain types for convenience
+type WorkhourDetails = domain.WorkhourDetails
+type Workhour = domain.Workhour
+type Project = domain.Project
 
 type AppMode int
 

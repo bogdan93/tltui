@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -9,12 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-type Project struct {
-	ID     int
-	Name   string
-	OdooID int
-}
 
 type ProjectsModel struct {
 	Width  int
@@ -34,7 +29,7 @@ func NewProjectsModel() ProjectsModel {
 	m := ProjectsModel{}
 
 	// Load from database
-	projects, err := GetAllProjectsFromDB()
+	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		// Fallback to empty if error
 		projects = []Project{}
@@ -108,14 +103,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Save to database
-		err := CreateProject(newProject)
+		err := repository.CreateProject(newProject)
 		if err != nil {
 			m.ProjectCreateModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
 		}
 
 		// Reload from database
-		projects, err := GetAllProjectsFromDB()
+		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectCreateModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
@@ -147,14 +142,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Name:   msg.Name,
 			OdooID: msg.OdooID,
 		}
-		err := UpdateProject(updatedProject)
+		err := repository.UpdateProject(updatedProject)
 		if err != nil {
 			m.ProjectEditModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
 		}
 
 		// Reload from database
-		projects, err := GetAllProjectsFromDB()
+		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectEditModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
@@ -179,14 +174,14 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ProjectDeletedMsg:
 		// Delete from database
-		err := DeleteProject(msg.ProjectID)
+		err := repository.DeleteProject(msg.ProjectID)
 		if err != nil {
 			m.ProjectDeleteModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
 		}
 
 		// Reload from database
-		projects, err := GetAllProjectsFromDB()
+		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
 			m.ProjectDeleteModal = nil
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))

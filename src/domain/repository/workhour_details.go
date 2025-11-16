@@ -1,21 +1,22 @@
-package models
+package repository
 
 import (
 	"database/sql"
 	"fmt"
+	"tltui/src/domain"
 )
 
 // GetAllWorkhourDetailsFromDB retrieves all workhour details from the database
-func GetAllWorkhourDetailsFromDB() ([]WorkhourDetails, error) {
+func GetAllWorkhourDetailsFromDB() ([]domain.WorkhourDetails, error) {
 	rows, err := db.Query("SELECT id, name, short_name, is_work FROM workhour_details ORDER BY id")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query workhour details: %w", err)
 	}
 	defer rows.Close()
 
-	var details []WorkhourDetails
+	var details []domain.WorkhourDetails
 	for rows.Next() {
-		var d WorkhourDetails
+		var d domain.WorkhourDetails
 		if err := rows.Scan(&d.ID, &d.Name, &d.ShortName, &d.IsWork); err != nil {
 			return nil, fmt.Errorf("failed to scan workhour details: %w", err)
 		}
@@ -30,8 +31,8 @@ func GetAllWorkhourDetailsFromDB() ([]WorkhourDetails, error) {
 }
 
 // GetWorkhourDetailsByID retrieves a single workhour details by ID
-func GetWorkhourDetailsByID(id int) (*WorkhourDetails, error) {
-	var d WorkhourDetails
+func GetWorkhourDetailsByID(id int) (*domain.WorkhourDetails, error) {
+	var d domain.WorkhourDetails
 	err := db.QueryRow("SELECT id, name, short_name, is_work FROM workhour_details WHERE id = ?", id).
 		Scan(&d.ID, &d.Name, &d.ShortName, &d.IsWork)
 
@@ -46,7 +47,7 @@ func GetWorkhourDetailsByID(id int) (*WorkhourDetails, error) {
 }
 
 // CreateWorkhourDetails inserts new workhour details into the database
-func CreateWorkhourDetails(details WorkhourDetails) error {
+func CreateWorkhourDetails(details domain.WorkhourDetails) error {
 	_, err := db.Exec(
 		"INSERT INTO workhour_details (id, name, short_name, is_work) VALUES (?, ?, ?, ?)",
 		details.ID, details.Name, details.ShortName, details.IsWork,
@@ -58,7 +59,7 @@ func CreateWorkhourDetails(details WorkhourDetails) error {
 }
 
 // UpdateWorkhourDetails updates existing workhour details
-func UpdateWorkhourDetails(details WorkhourDetails) error {
+func UpdateWorkhourDetails(details domain.WorkhourDetails) error {
 	result, err := db.Exec(
 		"UPDATE workhour_details SET name = ?, short_name = ?, is_work = ? WHERE id = ?",
 		details.Name, details.ShortName, details.IsWork, details.ID,
@@ -110,7 +111,7 @@ func SeedWorkhourDetails() error {
 		return nil
 	}
 
-	details := FetchAllWorkhourDetails()
+	details := fetchAllWorkhourDetails()
 	for _, d := range details {
 		if err := CreateWorkhourDetails(d); err != nil {
 			return fmt.Errorf("failed to seed workhour details: %w", err)

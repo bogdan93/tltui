@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -940,10 +941,10 @@ func (m *WorkhoursViewModal) initializeCreateMode() {
 	m.SelectedDetailsIndex = 0
 
 	// Refresh projects and workhour details from database to ensure we have latest data
-	if projects, err := GetAllProjectsFromDB(); err == nil {
+	if projects, err := repository.GetAllProjectsFromDB(); err == nil {
 		m.Projects = projects
 	}
-	if details, err := GetAllWorkhourDetailsFromDB(); err == nil {
+	if details, err := repository.GetAllWorkhourDetailsFromDB(); err == nil {
 		m.WorkhourDetails = details
 	}
 
@@ -968,10 +969,10 @@ func (m *WorkhoursViewModal) initializeEditMode() {
 	wh := m.Workhours[m.SelectedWorkhourIndex]
 
 	// Refresh projects and workhour details from database to ensure we have latest data
-	if projects, err := GetAllProjectsFromDB(); err == nil {
+	if projects, err := repository.GetAllProjectsFromDB(); err == nil {
 		m.Projects = projects
 	}
-	if details, err := GetAllWorkhourDetailsFromDB(); err == nil {
+	if details, err := repository.GetAllWorkhourDetailsFromDB(); err == nil {
 		m.WorkhourDetails = details
 	}
 

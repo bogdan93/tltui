@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -150,18 +151,18 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 	endDate := time.Date(viewYear, time.Month(viewMonth+1), 1, 0, 0, 0, 0, time.Local).AddDate(0, 0, -1)
 
 	// Get workhours for the specified month
-	workhours, err := GetWorkhoursByDateRange(startDate, endDate)
+	workhours, err := repository.GetWorkhoursByDateRange(startDate, endDate)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workhours: %w", err)
 	}
 
 	// Get workhour details and projects for lookup
-	workhourDetails, err := GetAllWorkhourDetailsFromDB()
+	workhourDetails, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		return "", fmt.Errorf("failed to get workhour details: %w", err)
 	}
 
-	projects, err := GetAllProjectsFromDB()
+	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		return "", fmt.Errorf("failed to get projects: %w", err)
 	}
@@ -211,7 +212,7 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 
 		// Format: date,account_id/id,journal_id/id,name,unit_amount
 		row := []string{
-			DateToString(wh.Date),
+			repository.DateToString(wh.Date),
 			fmt.Sprintf("__export__.account_analytic_account_%d", project.OdooID),
 			"hr_timesheet.analytic_journal",
 			details.Name,

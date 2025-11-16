@@ -57,11 +57,15 @@ func (m *WorkhourDetailsCreateModal) Update(msg tea.Msg) (WorkhourDetailsCreateM
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
 				m.ErrorMessage = "Name is required"
+				m.FocusedInput = 0
+				m.updateInputFocus()
 				return *m, nil
 			}
 
 			shortName := strings.TrimSpace(m.ShortNameInput.Value())
 			if shortName == "" {
+				m.FocusedInput = 1
+				m.updateInputFocus()
 				m.ErrorMessage = "Short name is required"
 				return *m, nil
 			}

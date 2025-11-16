@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -64,7 +65,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ProjectID: msg.ProjectID,
 			Hours:     msg.Hours,
 		}
-		_, err := CreateWorkhour(newWorkhour)
+		_, err := repository.CreateWorkhour(newWorkhour)
 		if err != nil {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
 		}
@@ -82,7 +83,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ProjectID: msg.ProjectID,
 			Hours:     msg.Hours,
 		}
-		err := UpdateWorkhour(msg.ID, updatedWorkhour)
+		err := repository.UpdateWorkhour(msg.ID, updatedWorkhour)
 		if err != nil {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
@@ -94,7 +95,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case WorkhourDeletedMsg:
-		err := DeleteWorkhour(msg.ID)
+		err := repository.DeleteWorkhour(msg.ID)
 		if err != nil {
 			return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
 		}
@@ -187,7 +188,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			err := DeleteWorkhoursByDate(m.SelectedDate)
+			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
 			}
@@ -199,7 +200,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					ProjectID: wh.ProjectID,
 					Hours:     wh.Hours,
 				}
-				_, err := CreateWorkhour(newWorkhour)
+				_, err := repository.CreateWorkhour(newWorkhour)
 				if err != nil {
 					return m, DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
 				}
@@ -207,7 +208,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "d":
-			err := DeleteWorkhoursByDate(m.SelectedDate)
+			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
 			}
@@ -222,8 +223,8 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.WorkhoursViewModal == nil {
 				workhours := m.getWorkhoursForDate(m.SelectedDate)
-				workhourDetails, _ := GetAllWorkhourDetailsFromDB()
-				projects, _ := GetAllProjectsFromDB()
+				workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
+				projects, _ := repository.GetAllProjectsFromDB()
 				m.WorkhoursViewModal = NewWorkhoursViewModal(
 					m.SelectedDate,
 					workhours,
@@ -464,7 +465,7 @@ func (m CalendarModel) isDateInVisibleGrid(date time.Time) bool {
 
 // getWorkhoursForDate returns all workhours for a specific date from the database
 func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
-	workhours, err := GetWorkhoursByDate(date)
+	workhours, err := repository.GetWorkhoursByDate(date)
 	if err != nil {
 		// Return empty slice on error (could log this in the future)
 		return []Workhour{}
@@ -474,7 +475,7 @@ func (m CalendarModel) getWorkhoursForDate(date time.Time) []Workhour {
 
 // getWorkhourDetailsByID returns the WorkhourDetails for a given ID from the database
 func (m CalendarModel) getWorkhourDetailsByID(id int) *WorkhourDetails {
-	details, err := GetWorkhourDetailsByID(id)
+	details, err := repository.GetWorkhourDetailsByID(id)
 	if err != nil {
 		return nil
 	}
