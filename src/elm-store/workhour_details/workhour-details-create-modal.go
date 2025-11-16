@@ -134,10 +134,7 @@ func (m *WorkhourDetailsCreateModal) View(Width, Height int) string {
 	sb.WriteString(m.ShortNameInput.View())
 	sb.WriteString("\n")
 
-	hintStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true)
-	sb.WriteString(hintStyle.Render("Displayed in calendar view • Use emoji only"))
+	sb.WriteString(render.RenderHelpText("Displayed in calendar view", "Use emoji only"))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(labelStyle.Render("Is Work:"))
@@ -155,7 +152,7 @@ func (m *WorkhourDetailsCreateModal) View(Width, Height int) string {
 	}
 	sb.WriteString(checkboxStyle.Render(checkbox))
 
-	hintStyle = lipgloss.NewStyle().
+	hintStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Italic(true)
 	if m.FocusedInput == 2 {
@@ -173,10 +170,7 @@ func (m *WorkhourDetailsCreateModal) View(Width, Height int) string {
 		sb.WriteString("\n\n")
 	}
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Tab/Shift+Tab: navigate • Space: toggle • Enter: create • ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Space: toggle", "Enter: create", "ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }

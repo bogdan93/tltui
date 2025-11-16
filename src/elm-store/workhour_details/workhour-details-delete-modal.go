@@ -82,10 +82,7 @@ func (m *WorkhourDetailsDeleteModal) View(Width, Height int) string {
 	sb.WriteString(warningStyle2.Render("This action cannot be undone!"))
 	sb.WriteString("\n\n")
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Y/Enter: confirm delete • N/ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Y/Enter: confirm delete", "N/ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }

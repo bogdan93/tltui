@@ -29,7 +29,7 @@ type ProjectEditCanceledMsg struct{}
 
 func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditModal {
 	nameInput := textinput.New()
-	nameInput.Placeholder = "domain.Project Name"
+	nameInput.Placeholder = "Project Name"
 	nameInput.SetValue(name)
 	nameInput.Focus()
 	nameInput.CharLimit = 64
@@ -61,7 +61,7 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
-				m.ErrorMessage = "domain.Project name is required"
+				m.ErrorMessage = "Project name is required"
 				m.FocusedInput = 0
 				m.updateInputFocus()
 				return *m, nil
@@ -124,7 +124,7 @@ func (m *ProjectEditModal) View(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("241"))
 
-	sb.WriteString(titleStyle.Render("Edit domain.Project"))
+	sb.WriteString(titleStyle.Render("Edit Project"))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(labelStyle.Render("Name:"))
@@ -145,10 +145,7 @@ func (m *ProjectEditModal) View(Width, Height int) string {
 		sb.WriteString("\n\n")
 	}
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Tab/Shift+Tab: navigate • Enter: save • ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Enter: save", "ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }

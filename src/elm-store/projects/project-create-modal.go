@@ -26,7 +26,7 @@ type ProjectCreateCanceledMsg struct{}
 
 func NewProjectCreateModal() *ProjectCreateModal {
 	nameInput := textinput.New()
-	nameInput.Placeholder = "domain.Project Name"
+	nameInput.Placeholder = "Project Name"
 	nameInput.Focus()
 	nameInput.CharLimit = 64
 	nameInput.Width = 40
@@ -55,7 +55,7 @@ func (m *ProjectCreateModal) Update(msg tea.Msg) (ProjectCreateModal, tea.Cmd) {
 
 			name := strings.TrimSpace(m.NameInput.Value())
 			if name == "" {
-				m.ErrorMessage = "domain.Project name is required"
+				m.ErrorMessage = "Project name is required"
 				m.FocusedInput = 0
 				m.updateInputFocus()
 				return *m, nil
@@ -120,7 +120,7 @@ func (m *ProjectCreateModal) View(Width, Height int) string {
 		Bold(true).
 		Foreground(lipgloss.Color("241"))
 
-	sb.WriteString(titleStyle.Render("Create New domain.Project"))
+	sb.WriteString(titleStyle.Render("Create New Project"))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(labelStyle.Render("Name:"))
@@ -141,10 +141,7 @@ func (m *ProjectCreateModal) View(Width, Height int) string {
 		sb.WriteString("\n\n")
 	}
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Tab/Shift+Tab: navigate • Enter: create • ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Enter: create", "ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }

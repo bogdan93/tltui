@@ -14,18 +14,18 @@ import (
 )
 
 type CalendarModel struct {
-	Width           int
-	Height          int
-	SelectedDate    time.Time
-	ViewMonth       int // Month being viewed (1-12)
-	ViewYear        int // Year being viewed
+	Width        int
+	Height       int
+	SelectedDate time.Time
+	ViewMonth    int // Month being viewed (1-12)
+	ViewYear     int // Year being viewed
 
-	WorkhoursViewModal     *WorkhoursViewModal
-	ReportGeneratorModal   *ReportGeneratorModal
-	ShowHelp               bool
+	WorkhoursViewModal   *WorkhoursViewModal
+	ReportGeneratorModal *ReportGeneratorModal
+	ShowHelp             bool
 
 	YankedWorkhours []domain.Workhour
-	YankedFromDate  time.Time 
+	YankedFromDate  time.Time
 }
 
 func NewCalendarModel() CalendarModel {
@@ -208,7 +208,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "d":
+		case "d", "x":
 			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
@@ -266,7 +266,7 @@ func (m CalendarModel) View() string {
 
 	var sb strings.Builder
 
-	availableWidth := max( m.Width-6, 70)
+	availableWidth := max(m.Width-6, 70)
 	cellWidth := availableWidth / 7
 
 	monthName := time.Month(m.ViewMonth).String()
@@ -376,8 +376,7 @@ func (m CalendarModel) View() string {
 	sb.WriteString(lipgloss.JoinVertical(lipgloss.Left, weekRows...))
 	sb.WriteString("\n")
 
-	helpItems := []string{"←/→: day", "↑/↓: week", "</>: month", "?: help"}
-	helpText := render.RenderHelpText(helpItems...)
+	helpText := render.RenderHelpText("←/→: day", "↑/↓: week", "</>: month", "?: help")
 	sb.WriteString("\n")
 	sb.WriteString(helpText)
 
@@ -470,7 +469,7 @@ func (m CalendarModel) renderHelpModal() string {
 		{"r", "Reset to current month"},
 		{"y", "Yank workhours from selected day"},
 		{"p", "Paste yanked workhours to selected day"},
-		{"d", "Delete all workhours from selected day"},
+		{"d, x", "Delete all workhours from selected day"},
 		{"g", "Generate report for current month"},
 		{"enter", "View/edit workhours for selected day"},
 		{"?", "Toggle this help"},

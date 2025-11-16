@@ -13,6 +13,50 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var (
+	titleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("214")). // Orange for edit
+			MarginBottom(1)
+
+	dateStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("86")). // Cyan
+			MarginBottom(1)
+
+	labelStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("241"))
+
+	valueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("255"))
+
+	helpStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241")).
+			Italic(true)
+
+	focusedStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("39"))
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Bold(true)
+
+	emptyStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241")).
+			Italic(true)
+
+	totalStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("114")). // Green
+			MarginTop(1)
+
+	selectedStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("39"))
+)
+
 type ModalMode int
 
 const (
@@ -32,11 +76,11 @@ type WorkhoursViewModal struct {
 
 	SelectedWorkhourIndex int // Index in Workhours array for edit/delete
 
-	HoursInput             textinput.Model
-	SelectedDetailsIndex   int // Index in domain.WorkhourDetails array
-	SelectedProjectIndex   int // Index in Projects array (-1 = None)
-	FocusedInput           int // 0=details, 1=project, 2=hours
-	ErrorMessage           string
+	HoursInput           textinput.Model
+	SelectedDetailsIndex int // Index in domain.WorkhourDetails array
+	SelectedProjectIndex int // Index in Projects array (-1 = None)
+	FocusedInput         int // 0=details, 1=project, 2=hours
+	ErrorMessage         string
 }
 
 type WorkhoursViewModalClosedMsg struct{}
@@ -359,37 +403,6 @@ func (m *WorkhoursViewModal) View(Width, Height int) string {
 func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	var sb strings.Builder
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("141")). // Purple
-		MarginBottom(1)
-
-	dateStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")). // Cyan
-		MarginBottom(1)
-
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	emptyStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-
-	totalStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("114")). // Green
-		MarginTop(1)
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true).
-		MarginTop(1)
-
 	sb.WriteString(titleStyle.Render("Work Hours"))
 	sb.WriteString("\n")
 
@@ -400,16 +413,12 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	if len(m.Workhours) == 0 {
 		sb.WriteString(emptyStyle.Render("No work hours logged for this day."))
 		sb.WriteString("\n\n")
-		sb.WriteString(helpStyle.Render("n: new • ESC/Enter: close"))
+		sb.WriteString(render.RenderHelpText("n: new", "ESC/Enter: close"))
 		return render.RenderSimpleModal(Width, Height, sb.String())
 	}
 
 	var totalWorkHours float64
 	var totalNonWorkHours float64
-
-	selectedStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
 
 	for i, wh := range m.Workhours {
 		prefix := "  "
@@ -462,7 +471,7 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 				totalNonWorkHours += wh.Hours
 			}
 		} else {
-			sb.WriteString(entryLabelStyle.Render(fmt.Sprintf("Unknown: ")))
+			sb.WriteString(entryLabelStyle.Render("Unknown: "))
 			sb.WriteString(entryValueStyle.Render(fmt.Sprintf("%sh", hoursStr)))
 		}
 
@@ -505,38 +514,19 @@ func (m *WorkhoursViewModal) viewModeView(Width, Height int) string {
 	sb.WriteString(totalStyle.Render(fmt.Sprintf("%sh", totalHoursStr)))
 
 	sb.WriteString("\n")
-	sb.WriteString(helpStyle.Render("n: new • e/Enter: edit • d: delete • ↑/↓: select • ESC: close"))
+
+	sb.WriteString(render.RenderHelpText(
+		"n: new",
+		"e/Enter: edit",
+		"d: delete",
+		"↑/↓: select",
+		"ESC: close"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
 func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	var sb strings.Builder
-
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")). // Blue
-		MarginBottom(1)
-
-	dateStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")). // Cyan
-		MarginBottom(1)
-
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-
-	focusedStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
 
 	sb.WriteString(titleStyle.Render("Add Work Hours"))
 	sb.WriteString("\n")
@@ -567,14 +557,11 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	sb.WriteString(labelStyle.Render("domain.Project:"))
+	sb.WriteString(labelStyle.Render("Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
-		hintStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Italic(true)
-		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
+		sb.WriteString(render.RenderHelpText("No projects available", "Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
 		for i, project := range m.Projects {
@@ -614,38 +601,14 @@ func (m *WorkhoursViewModal) viewCreateMode(Width, Height int) string {
 	}
 	sb.WriteString("\n\n")
 
-	sb.WriteString(helpStyle.Render("Tab: next • ↑/↓: select • Enter: save • ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab: next",
+		"↑/↓: select", "Enter: save", "ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
 
 func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	var sb strings.Builder
-
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("214")). // Orange for edit
-		MarginBottom(1)
-
-	dateStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")). // Cyan
-		MarginBottom(1)
-
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-
-	focusedStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
 
 	sb.WriteString(titleStyle.Render("Edit Work Hours"))
 	sb.WriteString("\n")
@@ -676,14 +639,11 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	}
 	sb.WriteString("\n")
 
-	sb.WriteString(labelStyle.Render("domain.Project:"))
+	sb.WriteString(labelStyle.Render("Project:"))
 	sb.WriteString("\n")
 
 	if len(m.Projects) == 0 {
-		hintStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Italic(true)
-		sb.WriteString(hintStyle.Render("  No projects available • Create one in tab 2"))
+		sb.WriteString(render.RenderHelpText("No projects available",  "Create one in tab 2"))
 		sb.WriteString("\n")
 	} else {
 		for i, project := range m.Projects {
@@ -713,9 +673,6 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	sb.WriteString(m.HoursInput.View())
 	sb.WriteString("\n\n")
 
-	errorStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("196")).
-		Bold(true)
 	if m.ErrorMessage != "" {
 		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
 	} else {
@@ -723,7 +680,10 @@ func (m *WorkhoursViewModal) viewEditMode(Width, Height int) string {
 	}
 	sb.WriteString("\n\n")
 
-	sb.WriteString(helpStyle.Render("Tab: next • ↑/↓: select • Enter: save • ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab: next",
+		"↑/↓: select",
+		"Enter: save",
+		"ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
@@ -797,7 +757,7 @@ func (m *WorkhoursViewModal) viewDeleteMode(Width, Height int) string {
 
 	// domain.Project
 	if projectName != "" {
-		sb.WriteString(labelStyle.Render("domain.Project: "))
+		sb.WriteString(labelStyle.Render("Project: "))
 		sb.WriteString(valueStyle.Render(projectName))
 		sb.WriteString("\n\n")
 	}

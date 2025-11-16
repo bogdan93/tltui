@@ -62,7 +62,7 @@ func (m *ProjectDeleteModal) View(Width, Height int) string {
 		Foreground(lipgloss.Color("214")). // Orange warning
 		Bold(true)
 
-	sb.WriteString(titleStyle.Render("⚠ Delete domain.Project"))
+	sb.WriteString(titleStyle.Render("⚠ Delete Project"))
 	sb.WriteString("\n\n")
 
 	sb.WriteString(warningStyle.Render("Are you sure you want to delete this project?"))
@@ -82,10 +82,7 @@ func (m *ProjectDeleteModal) View(Width, Height int) string {
 	sb.WriteString(warningStyle2.Render("This action cannot be undone!"))
 	sb.WriteString("\n\n")
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
-	sb.WriteString(helpStyle.Render("Y/Enter: confirm delete • N/ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Y/Enter: confirm delete", "N/ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
