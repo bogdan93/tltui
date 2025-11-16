@@ -1022,55 +1022,50 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 	m := maroto.New(cfg)
 	monthName := time.Month(viewMonth).String()
 
-	err := m.RegisterHeader(
-		row.New(5),
-		row.New(10).Add(
-			text.NewCol(12, "Raport de activitate", props.Text{
-				Top:   3,
-				Size:  16,
-				Style: fontstyle.Bold,
-				Align: align.Center,
-			}),
-		),
-		row.New(15),
-		row.New(5).Add(
-			text.NewCol(4, "Firma prestatoare:", props.Text{
-				Size:  10,
-				Top:   1,
-				Style: fontstyle.Bold,
-			}),
-			text.NewCol(8, fromCompany, props.Text{
-				Size: 10,
-				Top:  1,
-			}),
-		),
-		row.New(5).Add(
-			text.NewCol(4, "Catre:", props.Text{
-				Size:  10,
-				Top:   1,
-				Style: fontstyle.Bold,
-			}),
-			text.NewCol(8, toCompany, props.Text{
-				Size: 10,
-				Top:  1,
-			}),
-		),
-		row.New(5).Add(
-			text.NewCol(4, "Referitor la factura numarul:", props.Text{
-				Size:  10,
-				Top:   1,
-				Style: fontstyle.Bold,
-			}),
-			text.NewCol(8, fmt.Sprintf("%s - %s %d", invoiceName, monthName, viewYear), props.Text{
-				Size: 10,
-				Top:  1,
-			}),
-		),
+	// Add title and company info as regular rows (only on first page)
+	m.AddRow(5)
+	m.AddRow(10,
+		text.NewCol(12, "Raport de activitate", props.Text{
+			Top:   3,
+			Size:  16,
+			Style: fontstyle.Bold,
+			Align: align.Center,
+		}),
 	)
-
-	if err != nil {
-		return fmt.Errorf("failed to register header: %w", err)
-	}
+	m.AddRow(15)
+	m.AddRow(5,
+		text.NewCol(4, "Firma prestatoare:", props.Text{
+			Size:  10,
+			Top:   1,
+			Style: fontstyle.Bold,
+		}),
+		text.NewCol(8, fromCompany, props.Text{
+			Size: 10,
+			Top:  1,
+		}),
+	)
+	m.AddRow(5,
+		text.NewCol(4, "Catre:", props.Text{
+			Size:  10,
+			Top:   1,
+			Style: fontstyle.Bold,
+		}),
+		text.NewCol(8, toCompany, props.Text{
+			Size: 10,
+			Top:  1,
+		}),
+	)
+	m.AddRow(5,
+		text.NewCol(4, "Referitor la factura numarul:", props.Text{
+			Size:  10,
+			Top:   1,
+			Style: fontstyle.Bold,
+		}),
+		text.NewCol(8, fmt.Sprintf("%s - %s %d", invoiceName, monthName, viewYear), props.Text{
+			Size: 10,
+			Top:  1,
+		}),
+	)
 
 	m.AddRow(30)
 
@@ -1126,36 +1121,43 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 		BorderThickness: 0.5,
 	}
 
-	m.AddRow(7,
-		col.New(3).Add(text.New(tableHeaders[0], props.Text{
-			Top:   1.5,
-			Size:  9,
-			Style: fontstyle.Bold,
-			Align: align.Center,
-			Color: white,
-		})).WithStyle(headerCellStyle),
-		col.New(3).Add(text.New(tableHeaders[1], props.Text{
-			Top:   1.5,
-			Size:  9,
-			Style: fontstyle.Bold,
-			Align: align.Center,
-			Color: white,
-		})).WithStyle(headerCellStyle),
-		col.New(3).Add(text.New(tableHeaders[2], props.Text{
-			Top:   1.5,
-			Size:  9,
-			Style: fontstyle.Bold,
-			Align: align.Center,
-			Color: white,
-		})).WithStyle(headerCellStyle),
-		col.New(3).Add(text.New(tableHeaders[3], props.Text{
-			Top:   1.5,
-			Size:  9,
-			Style: fontstyle.Bold,
-			Align: align.Center,
-			Color: white,
-		})).WithStyle(headerCellStyle),
+	// Register table header to repeat on every page
+	err := m.RegisterHeader(
+		row.New(7).Add(
+			col.New(3).Add(text.New(tableHeaders[0], props.Text{
+				Top:   1.5,
+				Size:  9,
+				Style: fontstyle.Bold,
+				Align: align.Center,
+				Color: white,
+			})).WithStyle(headerCellStyle),
+			col.New(3).Add(text.New(tableHeaders[1], props.Text{
+				Top:   1.5,
+				Size:  9,
+				Style: fontstyle.Bold,
+				Align: align.Center,
+				Color: white,
+			})).WithStyle(headerCellStyle),
+			col.New(3).Add(text.New(tableHeaders[2], props.Text{
+				Top:   1.5,
+				Size:  9,
+				Style: fontstyle.Bold,
+				Align: align.Center,
+				Color: white,
+			})).WithStyle(headerCellStyle),
+			col.New(3).Add(text.New(tableHeaders[3], props.Text{
+				Top:   1.5,
+				Size:  9,
+				Style: fontstyle.Bold,
+				Align: align.Center,
+				Color: white,
+			})).WithStyle(headerCellStyle),
+		),
 	)
+
+	if err != nil {
+		return fmt.Errorf("failed to register table header: %w", err)
+	}
 
 	for i, rowData := range tableRows {
 		backgroundColor := white
