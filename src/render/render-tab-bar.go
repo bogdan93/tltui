@@ -14,19 +14,16 @@ type Tab struct {
 func RenderTabBar(tabs []Tab, activeIndex int) string {
 	var sb strings.Builder
 
-	// Style for active tab
 	activeTabStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("229")).
 		Background(lipgloss.Color("57")).
 		Padding(0, 1)
 
-	// Style for inactive tab
 	inactiveTabStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Padding(0, 1)
 
-	// Border style for the tab bar
 	tabBarStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).

@@ -27,26 +27,20 @@ func RenderModal(termWidth, termHeight int, modalWidth, modalHeight int, content
 		Width(modalWidth).
 		Height(modalHeight)
 
-	// Render the content inside the modal
 	modalContent := modalStyle.Render(content)
 
-	// Calculate vertical centering
 	contentHeight := lipgloss.Height(modalContent)
 	verticalPadding := max((termHeight-contentHeight)/2, 0)
 
-	// Calculate horizontal centering
 	contentWidth := lipgloss.Width(modalContent)
 	horizontalPadding := max((termWidth-contentWidth)/2, 0)
 
-	// Create the centered layout
 	var sb strings.Builder
 
-	// Add vertical padding (top)
 	for range verticalPadding {
 		sb.WriteString("\n")
 	}
 
-	// Add horizontal padding and content
 	lines := strings.SplitSeq(modalContent, "\n")
 	for line := range lines {
 		sb.WriteString(strings.Repeat(" ", horizontalPadding))

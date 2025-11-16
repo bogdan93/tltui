@@ -24,7 +24,7 @@ type ProjectsModel struct {
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
 	Projects         []domain.Project
-	NextID           int // Track next available ID for new projects
+	NextID           int
 }
 
 func NewProjectsModel() ProjectsModel {

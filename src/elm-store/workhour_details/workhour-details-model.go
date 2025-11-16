@@ -24,7 +24,7 @@ type WorkhourDetailsModel struct {
 	WorkhourDetailsTable    table.Model
 	WorkhourDetailsViewport viewport.Model
 	WorkhourDetails         []domain.WorkhourDetails
-	NextID                  int // Track next available ID for new workhour details
+	NextID                  int
 }
 
 func NewWorkhourDetailsModel() WorkhourDetailsModel {
