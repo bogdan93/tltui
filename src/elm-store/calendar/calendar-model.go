@@ -348,6 +348,10 @@ func (m CalendarModel) View() string {
 					Bold(true).
 					Foreground(lipgloss.Color("229")).
 					Background(lipgloss.Color("57"))
+			} else if isCoppiedDate {
+				cellStyle = baseStyle.
+					Foreground(lipgloss.Color("114")).
+					BorderForeground(lipgloss.Color("114"))
 			} else if isToday {
 				cellStyle = baseStyle.
 					Bold(true).
@@ -355,10 +359,6 @@ func (m CalendarModel) View() string {
 			} else if !isCurrentMonth {
 				cellStyle = baseStyle.
 					Foreground(lipgloss.Color("240"))
-			} else if isCoppiedDate {
-				cellStyle = baseStyle.
-					Foreground(lipgloss.Color("114")).
-					BorderForeground(lipgloss.Color("114"))
 			} else {
 				cellStyle = baseStyle.
 					Foreground(lipgloss.Color("255"))
