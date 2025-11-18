@@ -737,7 +737,7 @@ func generateOdooCSVReport(viewMonth, viewYear int) (string, error) {
 			fmt.Sprintf("__export__.account_analytic_account_%d", project.OdooID),
 			"hr_timesheet.analytic_journal",
 			details.Name,
-			fmt.Sprintf("%.1f", wh.Hours),
+			fmt.Sprintf("%g", wh.Hours),
 		}
 
 		if err := writer.Write(row); err != nil {
