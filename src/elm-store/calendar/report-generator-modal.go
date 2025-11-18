@@ -931,118 +931,6 @@ func calculateWorkhourStats(
 	return stats
 }
 
-func formatMailReport(
-	viewMonth, viewYear int,
-	fromCompany, toCompany string,
-	stats WorkhourStats,
-) string {
-	monthName := time.Month(viewMonth).String()
-	currentTime := time.Now().Format("January 2, 2006 at 3:04 PM")
-
-	var sb strings.Builder
-
-	sb.WriteString(strings.Repeat("=", 70))
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("WORKHOUR REPORT - %s %d\n", monthName, viewYear))
-	sb.WriteString(strings.Repeat("=", 70))
-	sb.WriteString("\n\n")
-
-	if fromCompany != "" {
-		sb.WriteString(fmt.Sprintf("From: %s\n", fromCompany))
-	}
-	if toCompany != "" {
-		sb.WriteString(fmt.Sprintf("To: %s\n", toCompany))
-	}
-	sb.WriteString(fmt.Sprintf("Date: %s\n", currentTime))
-	sb.WriteString("\n")
-	sb.WriteString(strings.Repeat("-", 70))
-	sb.WriteString("\n\n")
-
-	sb.WriteString("SUMMARY\n")
-	sb.WriteString(strings.Repeat("-", 70))
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("Total Work Hours:     %.1f hours\n", stats.TotalHours))
-	sb.WriteString(fmt.Sprintf("Total Days Worked:    %d days\n", stats.TotalDays))
-	sb.WriteString(fmt.Sprintf("Average Hours/Day:    %.1f hours\n", stats.AveragePerDay))
-	sb.WriteString("\n\n")
-
-	if len(stats.ProjectHours) > 0 {
-		sb.WriteString("BREAKDOWN BY PROJECT\n")
-		sb.WriteString(strings.Repeat("-", 70))
-		sb.WriteString("\n")
-
-		projectNames := make([]string, 0, len(stats.ProjectHours))
-		for name := range stats.ProjectHours {
-			projectNames = append(projectNames, name)
-		}
-		sort.Strings(projectNames)
-
-		for _, projectName := range projectNames {
-			hours := stats.ProjectHours[projectName]
-			percentage := (hours / stats.TotalHours) * 100
-			sb.WriteString(fmt.Sprintf("%-40s %8.1f hours (%5.1f%%)\n", projectName, hours, percentage))
-		}
-		sb.WriteString("\n\n")
-	}
-
-	if len(stats.ActivityHours) > 0 {
-		sb.WriteString("BREAKDOWN BY ACTIVITY TYPE\n")
-		sb.WriteString(strings.Repeat("-", 70))
-		sb.WriteString("\n")
-
-		activityNames := make([]string, 0, len(stats.ActivityHours))
-		for name := range stats.ActivityHours {
-			activityNames = append(activityNames, name)
-		}
-		sort.Strings(activityNames)
-
-		for _, activityName := range activityNames {
-			hours := stats.ActivityHours[activityName]
-			percentage := (hours / stats.TotalHours) * 100
-			sb.WriteString(fmt.Sprintf("%-40s %8.1f hours (%5.1f%%)\n", activityName, hours, percentage))
-		}
-		sb.WriteString("\n\n")
-	}
-
-	sb.WriteString("DAILY BREAKDOWN\n")
-	sb.WriteString(strings.Repeat("-", 70))
-	sb.WriteString("\n")
-
-	dates := make([]string, 0, len(stats.DailyBreakdown))
-	for date := range stats.DailyBreakdown {
-		dates = append(dates, date)
-	}
-	sort.Strings(dates)
-
-	for _, dateStr := range dates {
-		entries := stats.DailyBreakdown[dateStr]
-
-		parsedDate, _ := time.Parse("2006-01-02", dateStr)
-		dayOfWeek := parsedDate.Format("Monday")
-
-		dailyTotal := 0.0
-		for _, entry := range entries {
-			dailyTotal += entry.Hours
-		}
-
-		sb.WriteString(fmt.Sprintf("%s - %s: %.1f hours\n", dateStr, dayOfWeek, dailyTotal))
-
-		for _, entry := range entries {
-			sb.WriteString(fmt.Sprintf("  - %s / %s: %.1f hours\n",
-				entry.ProjectName, entry.ActivityName, entry.Hours))
-		}
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString(strings.Repeat("=", 70))
-	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("Generated on %s\n", currentTime))
-	sb.WriteString(strings.Repeat("=", 70))
-	sb.WriteString("\n")
-
-	return sb.String()
-}
-
 func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, toCompany, invoiceName, signatureImagePath string, stats WorkhourStats) error {
 	cfg := config.NewBuilder().
 		WithPageNumber().
@@ -1125,7 +1013,7 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 				dateStr,
 				entry.ProjectName,
 				entry.ActivityName,
-				fmt.Sprintf("%.0f", entry.Hours),
+				fmt.Sprintf("%g", entry.Hours),
 			})
 			totalHours += entry.Hours
 		}
@@ -1135,7 +1023,7 @@ func generatePDFReport(filePath string, viewMonth, viewYear int, fromCompany, to
 		"",
 		"",
 		"",
-		fmt.Sprintf("%.0f", totalHours),
+		fmt.Sprintf("%g", totalHours),
 	})
 
 	darkBlue := &props.Color{Red: 54, Green: 69, Blue: 92}
