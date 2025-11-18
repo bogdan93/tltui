@@ -3,3 +3,4 @@ time-logger-tui
 bin/
 .claude
 ./src/src
+.git

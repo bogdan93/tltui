@@ -180,9 +180,12 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "y":
+			if len(m.getWorkhoursForDate(m.SelectedDate)) == 0 {
+				return m, nil
+			}
 			m.YankedWorkhours = m.getWorkhoursForDate(m.SelectedDate)
 			m.YankedFromDate = m.SelectedDate
-			return m, nil
+			return m, common.DispatchSuccessNotification(fmt.Sprintf("📋 Copied %d workhour(s) from %s", len(m.YankedWorkhours), m.SelectedDate.Format("2006-01-02")))
 
 		case "p":
 			if len(m.YankedWorkhours) == 0 {
@@ -212,6 +215,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 			if err != nil {
 				return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
+			}
+			if m.isSameDay(m.SelectedDate, m.YankedFromDate) {
+				m.YankedWorkhours = nil
+				m.YankedFromDate = time.Time{}
 			}
 			return m, nil
 
@@ -268,15 +275,16 @@ func (m CalendarModel) View() string {
 
 	availableWidth := max(m.Width-6, 70)
 	cellWidth := availableWidth / 7
+	cellHeight := (m.Height - 8) / 7
 
 	monthName := time.Month(m.ViewMonth).String()
 	header := fmt.Sprintf("%s %d", monthName, m.ViewYear)
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("39")).
-		Width(availableWidth).
-		Align(lipgloss.Center).
-		MarginBottom(1)
+		Width(m.Width).
+		Align(lipgloss.Center)
+
 	sb.WriteString(headerStyle.Render(header))
 	sb.WriteString("\n")
 
@@ -322,11 +330,13 @@ func (m CalendarModel) View() string {
 			isToday := m.isSameDay(cellDay, today)
 			isSelected := m.isSameDay(cellDay, m.SelectedDate)
 			isCurrentMonth := cellDay.Month() == time.Month(m.ViewMonth)
+			isCoppiedDate := m.isSameDay(cellDay, m.YankedFromDate)
 
 			var cellStyle lipgloss.Style
+
 			baseStyle := lipgloss.NewStyle().
 				Width(cellWidth).
-				Height(3).
+				Height(cellHeight).
 				Padding(0, 1).
 				BorderStyle(lipgloss.NormalBorder()).
 				BorderForeground(lipgloss.Color("240")).
@@ -345,6 +355,10 @@ func (m CalendarModel) View() string {
 			} else if !isCurrentMonth {
 				cellStyle = baseStyle.
 					Foreground(lipgloss.Color("240"))
+			} else if isCoppiedDate {
+				cellStyle = baseStyle.
+					Foreground(lipgloss.Color("114")).
+					BorderForeground(lipgloss.Color("114"))
 			} else {
 				cellStyle = baseStyle.
 					Foreground(lipgloss.Color("255"))
@@ -355,17 +369,46 @@ func (m CalendarModel) View() string {
 				workhours := m.getWorkhoursForDate(cellDay)
 				for _, wh := range workhours {
 					details := m.getWorkhourDetailsByID(wh.DetailsID)
+					project := m.getProjectByID(wh.ProjectID)
+
 					if details != nil {
 						hoursStr := fmt.Sprintf("%.1f", wh.Hours)
 						if wh.Hours == float64(int(wh.Hours)) {
 							hoursStr = fmt.Sprintf("%d", int(wh.Hours))
 						}
-						workhourLines = append(workhourLines, fmt.Sprintf("%s %sh", details.ShortName, hoursStr))
+
+						prefixLen := len(details.ShortName) + len(hoursStr)
+						availableSpace := cellWidth - prefixLen - 2
+
+						projectName := project.Name
+						if len(projectName) > availableSpace {
+							if availableSpace > 1 {
+								projectName = projectName[:availableSpace-1] + "…"
+							} else {
+								projectName = "…"
+							}
+						}
+						workhourLines = append(
+							workhourLines,
+							fmt.Sprintf("%s%sh %s", details.ShortName, hoursStr, projectName),
+						)
 					}
 				}
 			}
 
-			workhourText := strings.Join(workhourLines, " ")
+			// Truncate workhour lines if they exceed cell height
+			// -1 for day number line
+			maxLines := cellHeight - 1
+			if len(workhourLines) > maxLines && maxLines > 0 {
+				if maxLines > 1 {
+					workhourLines = workhourLines[:maxLines-1]
+					workhourLines = append(workhourLines, "…")
+				} else {
+					workhourLines = []string{"…"}
+				}
+			}
+
+			workhourText := strings.Join(workhourLines, "\n")
 			formattedContent := cellContent + "\n" + workhourText
 			dayCells = append(dayCells, cellStyle.Render(formattedContent))
 		}
@@ -447,6 +490,14 @@ func (m CalendarModel) getWorkhourDetailsByID(id int) *domain.WorkhourDetails {
 		return nil
 	}
 	return details
+}
+
+func (m CalendarModel) getProjectByID(id int) *domain.Project {
+	project, err := repository.GetProjectByID(id)
+	if err != nil {
+		return nil
+	}
+	return project
 }
 
 func (m CalendarModel) renderHelpModal() string {

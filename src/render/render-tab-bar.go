@@ -25,9 +25,7 @@ func RenderTabBar(tabs []Tab, activeIndex int) string {
 		Padding(0, 1)
 
 	tabBarStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
-		BorderForeground(lipgloss.Color("240")).
 		MarginBottom(1)
 
 	for i, tab := range tabs {

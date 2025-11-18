@@ -2,7 +2,7 @@ package render
 
 import "github.com/charmbracelet/lipgloss"
 
-var globalStyle = lipgloss.NewStyle().Padding(1)
+var globalStyle = lipgloss.NewStyle().Padding(0, 1)
 
 func RenderPageLayout(title, content string) string {
 	titleString := RenderPageTitle(title)
@@ -18,6 +18,9 @@ func RenderPageLayoutWithTabs(activeTabIndex int, content string) string {
 	}
 
 	tabBar := RenderTabBar(tabs, activeTabIndex)
-	fullContent := globalStyle.Render(tabBar + "\n" + content)
-	return fullContent
+	return lipgloss.JoinVertical(
+		lipgloss.Top,
+		tabBar,
+		content,
+	)
 }
