@@ -893,7 +893,7 @@ func calculateWorkhourStats(
 	for _, wh := range workhours {
 		stats.TotalHours += wh.Hours
 
-		dateStr := repository.DateToString(wh.Date)
+		dateStr := wh.Date.Format("02-Jan-2006")
 		daysWorked[dateStr] = true
 
 		var projectName, activityName string

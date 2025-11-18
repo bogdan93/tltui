@@ -464,8 +464,8 @@ func (m CalendarModel) isDateInVisibleGrid(date time.Time) bool {
 
 	normalizedDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
 
-	for week := 0; week < 6; week++ {
-		for day := 0; day < 7; day++ {
+	for week := range 6 {
+		for day := range 7 {
 			gridDate := grid[week][day]
 			if m.isSameDay(normalizedDate, gridDate) {
 				return true
