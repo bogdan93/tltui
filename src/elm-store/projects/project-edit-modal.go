@@ -3,20 +3,16 @@ package projects
 import (
 	"strconv"
 	"strings"
+	"tltui/src/common"
 	"tltui/src/render"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type ProjectEditModal struct {
-	EditModalContent string
 	EditingProjectID int
-	NameInput        textinput.Model
-	OdooIDInput      textinput.Model
-	FocusedInput     int // 0 = name, 1 = odoo
-	ErrorMessage     string
+	Form             *common.Form
 }
 
 type ProjectEditedMsg struct {
@@ -28,88 +24,48 @@ type ProjectEditedMsg struct {
 type ProjectEditCanceledMsg struct{}
 
 func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditModal {
-	nameInput := textinput.New()
-	nameInput.Placeholder = "Project Name"
-	nameInput.SetValue(name)
-	nameInput.Focus()
-	nameInput.CharLimit = 64
-	nameInput.Width = 40
+	nameField := common.NewRequiredFormField("Name", "Project Name", 40).
+		WithInitialValue(name)
 
-	odooIDInput := textinput.New()
-	odooIDInput.Placeholder = "Odoo ID"
-	odooIDInput.SetValue(strconv.Itoa(odooID))
-	odooIDInput.CharLimit = 10
-	odooIDInput.Width = 40
+	odooIDField := common.NewRequiredFormField("Odoo ID", "Odoo ID", 40).
+		WithCharLimit(10).
+		WithValidator(common.PositiveIntValidator("Odoo ID")).
+		WithInitialValue(strconv.Itoa(odooID))
+
+	form := common.NewForm(&nameField, &odooIDField)
 
 	return &ProjectEditModal{
 		EditingProjectID: projectID,
-		NameInput:        nameInput,
-		OdooIDInput:      odooIDInput,
-		FocusedInput:     0,
+		Form:             form,
 	}
 }
 
 func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			m.ErrorMessage = ""
-
-			name := strings.TrimSpace(m.NameInput.Value())
-			if name == "" {
-				m.ErrorMessage = "Project name is required"
-				m.FocusedInput = 0
-				m.updateInputFocus()
+			if err := m.Form.Validate(); err != nil {
 				return *m, nil
 			}
 
-			odooIDStr := strings.TrimSpace(m.OdooIDInput.Value())
-			if odooIDStr == "" {
-				m.ErrorMessage = "Odoo ID is required"
-				m.FocusedInput = 1
-				m.updateInputFocus()
-				return *m, nil
-			}
-
-			odooID, err := strconv.Atoi(odooIDStr)
-			if err != nil || odooID <= 0 {
-				m.ErrorMessage = "Odoo ID must be a positive number"
-				m.FocusedInput = 1
-				m.updateInputFocus()
-				return *m, nil
-			}
+			name := strings.TrimSpace(m.Form.GetValue(0))
+			odooIDStr := strings.TrimSpace(m.Form.GetValue(1))
+			odooID, _ := strconv.Atoi(odooIDStr) // Already validated
 
 			return *m, tea.Batch(
 				dispatchEditedMsg(m.EditingProjectID, name, odooID),
 			)
+
 		case "esc":
 			return *m, tea.Batch(
 				dispatchEditCanceledMsg(),
 			)
-		case "tab":
-			m.FocusedInput = (m.FocusedInput + 1) % 2
-			m.updateInputFocus()
-			return *m, nil
-
-		case "shift+tab":
-			m.FocusedInput = (m.FocusedInput - 1 + 2) % 2
-			m.updateInputFocus()
-			return *m, nil
 		}
 	}
 
-	if m.FocusedInput == 0 {
-		m.NameInput, cmd = m.NameInput.Update(msg)
-		cmds = append(cmds, cmd)
-	} else {
-		m.OdooIDInput, cmd = m.OdooIDInput.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-	return *m, tea.Batch(cmds...)
+	cmd := m.Form.Update(msg)
+	return *m, cmd
 }
 
 func (m *ProjectEditModal) View(Width, Height int) string {
@@ -120,30 +76,10 @@ func (m *ProjectEditModal) View(Width, Height int) string {
 		Foreground(lipgloss.Color("39")).
 		MarginBottom(1)
 
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
 	sb.WriteString(titleStyle.Render("Edit Project"))
 	sb.WriteString("\n\n")
 
-	sb.WriteString(labelStyle.Render("Name:"))
-	sb.WriteString("\n")
-	sb.WriteString(m.NameInput.View())
-	sb.WriteString("\n\n")
-
-	sb.WriteString(labelStyle.Render("Odoo ID:"))
-	sb.WriteString("\n")
-	sb.WriteString(m.OdooIDInput.View())
-	sb.WriteString("\n\n")
-
-	if m.ErrorMessage != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
-			Bold(true)
-		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
-		sb.WriteString("\n\n")
-	}
+	sb.WriteString(m.Form.View())
 
 	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Enter: save", "ESC: cancel"))
 
@@ -163,15 +99,5 @@ func dispatchEditedMsg(projectID int, name string, odooID int) tea.Cmd {
 func dispatchEditCanceledMsg() tea.Cmd {
 	return func() tea.Msg {
 		return ProjectEditCanceledMsg{}
-	}
-}
-
-func (m *ProjectEditModal) updateInputFocus() {
-	if m.FocusedInput == 0 {
-		m.NameInput.Focus()
-		m.OdooIDInput.Blur()
-	} else {
-		m.NameInput.Blur()
-		m.OdooIDInput.Focus()
 	}
 }

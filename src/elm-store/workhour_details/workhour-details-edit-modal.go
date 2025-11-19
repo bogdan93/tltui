@@ -2,20 +2,16 @@ package workhour_details
 
 import (
 	"strings"
+	"tltui/src/common"
 	"tltui/src/render"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type WorkhourDetailsEditModal struct {
 	EditingWorkhourDetailID int
-	NameInput               textinput.Model
-	ShortNameInput          textinput.Model
-	IsWork                  bool
-	FocusedInput            int // 0 = name, 1 = shortname, 2 = iswork
-	ErrorMessage            string
+	Form                    *common.MixedForm
 }
 
 type WorkhourDetailsEditedMsg struct {
@@ -28,87 +24,55 @@ type WorkhourDetailsEditedMsg struct {
 type WorkhourDetailsEditCanceledMsg struct{}
 
 func NewWorkhourDetailsEditModal(workhourDetailID int, name string, shortName string, isWork bool) *WorkhourDetailsEditModal {
-	nameInput := textinput.New()
-	nameInput.Placeholder = "Name"
-	nameInput.SetValue(name)
-	nameInput.Focus()
-	nameInput.CharLimit = 64
-	nameInput.Width = 40
+	nameField := common.NewRequiredFormField("Name", "Name", 40).
+		WithInitialValue(name)
 
-	shortNameInput := textinput.New()
-	shortNameInput.Placeholder = "Short Name"
-	shortNameInput.SetValue(shortName)
-	shortNameInput.CharLimit = 20
-	shortNameInput.Width = 40
+	shortNameField := common.NewRequiredFormField("Short Name", "Short Name", 40).
+		WithCharLimit(20).
+		WithHelpText("Displayed in calendar view - Use emoji only").
+		WithInitialValue(shortName)
+
+	isWorkCheckbox := common.NewFormCheckbox("Is Work", isWork).
+		WithHelpText("included in mail report")
+
+	form := common.NewMixedForm(&nameField, &shortNameField, isWorkCheckbox)
 
 	return &WorkhourDetailsEditModal{
 		EditingWorkhourDetailID: workhourDetailID,
-		NameInput:               nameInput,
-		ShortNameInput:          shortNameInput,
-		IsWork:                  isWork,
-		FocusedInput:            0,
+		Form:                    form,
 	}
 }
 
 func (m *WorkhourDetailsEditModal) Update(msg tea.Msg) (WorkhourDetailsEditModal, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			m.ErrorMessage = ""
-
-			name := strings.TrimSpace(m.NameInput.Value())
-			if name == "" {
-				m.ErrorMessage = "Name is required"
-				m.FocusedInput = 0
-				m.updateInputFocus()
+			if err := m.Form.Validate(); err != nil {
 				return *m, nil
 			}
 
-			shortName := strings.TrimSpace(m.ShortNameInput.Value())
-			if shortName == "" {
-				m.FocusedInput = 0
-				m.updateInputFocus()
-				m.ErrorMessage = "Short name is required"
-				return *m, nil
-			}
+			nameField := m.Form.GetField(0)
+			shortNameField := m.Form.GetField(1)
+			isWorkCheckbox := m.Form.GetCheckbox(2)
+
+			name := strings.TrimSpace(nameField.Value())
+			shortName := strings.TrimSpace(shortNameField.Value())
+			isWork := isWorkCheckbox.Value
 
 			return *m, tea.Batch(
-				dispatchWorkhourDetailsEditedMsg(m.EditingWorkhourDetailID, name, shortName, m.IsWork),
+				dispatchWorkhourDetailsEditedMsg(m.EditingWorkhourDetailID, name, shortName, isWork),
 			)
+
 		case "esc":
 			return *m, tea.Batch(
 				dispatchWorkhourDetailsEditCanceledMsg(),
 			)
-		case "tab":
-			m.FocusedInput = (m.FocusedInput + 1) % 3
-			m.updateInputFocus()
-			return *m, nil
-
-		case "shift+tab":
-			m.FocusedInput = (m.FocusedInput - 1 + 3) % 3
-			m.updateInputFocus()
-			return *m, nil
-
-		case " ":
-			if m.FocusedInput == 2 {
-				m.IsWork = !m.IsWork
-				return *m, nil
-			}
 		}
 	}
 
-	if m.FocusedInput == 0 {
-		m.NameInput, cmd = m.NameInput.Update(msg)
-		cmds = append(cmds, cmd)
-	} else if m.FocusedInput == 1 {
-		m.ShortNameInput, cmd = m.ShortNameInput.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-	return *m, tea.Batch(cmds...)
+	cmd := m.Form.Update(msg)
+	return *m, cmd
 }
 
 func (m *WorkhourDetailsEditModal) View(Width, Height int) string {
@@ -119,60 +83,12 @@ func (m *WorkhourDetailsEditModal) View(Width, Height int) string {
 		Foreground(lipgloss.Color("39")).
 		MarginBottom(1)
 
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("241"))
-
 	sb.WriteString(titleStyle.Render("Edit Workhour Detail"))
 	sb.WriteString("\n\n")
 
-	sb.WriteString(labelStyle.Render("Name:"))
-	sb.WriteString("\n")
-	sb.WriteString(m.NameInput.View())
-	sb.WriteString("\n\n")
+	sb.WriteString(m.Form.View())
 
-	sb.WriteString(labelStyle.Render("Short Name:"))
-	sb.WriteString("\n")
-	sb.WriteString(m.ShortNameInput.View())
-	sb.WriteString("\n")
-
-	sb.WriteString(render.RenderHelpText("Displayed in calendar view", "Use emoji only"))
-	sb.WriteString("\n\n")
-
-	sb.WriteString(labelStyle.Render("Is Work:"))
-	sb.WriteString("\n")
-	checkboxStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255"))
-	if m.FocusedInput == 2 {
-		checkboxStyle = checkboxStyle.
-			Bold(true).
-			Foreground(lipgloss.Color("39"))
-	}
-	checkbox := "[ ]"
-	if m.IsWork {
-		checkbox = "[✓]"
-	}
-	sb.WriteString(checkboxStyle.Render(checkbox))
-
-	hintStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true)
-	if m.FocusedInput == 2 {
-		sb.WriteString(" " + labelStyle.Render("(press Space to toggle)"))
-	} else if m.IsWork {
-		sb.WriteString("  " + hintStyle.Render("(included in mail report)"))
-	}
-	sb.WriteString("\n\n")
-
-	if m.ErrorMessage != "" {
-		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
-			Bold(true)
-		sb.WriteString(errorStyle.Render("⚠ " + m.ErrorMessage))
-		sb.WriteString("\n\n")
-	}
-
-	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Space: toggle",  "Enter: save",  "ESC: cancel"))
+	sb.WriteString(render.RenderHelpText("Tab/Shift+Tab: navigate", "Space: toggle", "Enter: save", "ESC: cancel"))
 
 	return render.RenderSimpleModal(Width, Height, sb.String())
 }
@@ -191,18 +107,5 @@ func dispatchWorkhourDetailsEditedMsg(workhourDetailID int, name string, shortNa
 func dispatchWorkhourDetailsEditCanceledMsg() tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourDetailsEditCanceledMsg{}
-	}
-}
-
-func (m *WorkhourDetailsEditModal) updateInputFocus() {
-	if m.FocusedInput == 0 {
-		m.NameInput.Focus()
-		m.ShortNameInput.Blur()
-	} else if m.FocusedInput == 1 {
-		m.NameInput.Blur()
-		m.ShortNameInput.Focus()
-	} else {
-		m.NameInput.Blur()
-		m.ShortNameInput.Blur()
 	}
 }
