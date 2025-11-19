@@ -798,11 +798,6 @@ type WorkhourEditedMsg struct {
 	Hours     float64
 }
 
-type WorkhourDeletedMsg struct {
-	ID   int       // Database ID of the workhour
-	Date time.Time // Date to identify which day
-}
-
 func dispatchWorkhourCreatedMsg(date time.Time, detailsID int, projectID int, hours float64) tea.Cmd {
 	return func() tea.Msg {
 		return WorkhourCreatedMsg{
@@ -824,6 +819,11 @@ func dispatchWorkhourEditedMsg(id int, date time.Time, detailsID int, projectID 
 			Hours:     hours,
 		}
 	}
+}
+
+type WorkhourDeletedMsg struct {
+	ID   int
+	Date time.Time
 }
 
 func dispatchWorkhourDeletedMsg(id int, date time.Time) tea.Cmd {
