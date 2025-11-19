@@ -21,6 +21,9 @@ type CalendarModel struct {
 	ViewYear     int // Year being viewed
 
 	WorkhoursViewModal   *WorkhoursViewModal
+	WorkhourCreateModal  *WorkhourCreateModal
+	WorkhourEditModal    *WorkhourEditModal
+	WorkhourDeleteModal  *WorkhourDeleteModal
 	ReportGeneratorModal *ReportGeneratorModal
 	ShowHelp             bool
 
@@ -59,7 +62,67 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ReportGeneratorModal = nil
 		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
 
-	case WorkhourCreatedMsg:
+	// View modal requests
+	case WorkhoursViewModalCreateRequestedMsg:
+		workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
+		projects, _ := repository.GetAllProjectsFromDB()
+		m.WorkhourCreateModal = NewWorkhourCreateModal(msg.Date, workhourDetails, projects)
+		return m, nil
+
+	case WorkhoursViewModalEditRequestedMsg:
+		workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
+		projects, _ := repository.GetAllProjectsFromDB()
+		workhours := m.getWorkhoursForDate(msg.Date)
+
+		// Find the specific workhour
+		var currentWorkhour *domain.Workhour
+		for _, wh := range workhours {
+			if wh.ID == msg.WorkhourID {
+				currentWorkhour = &wh
+				break
+			}
+		}
+
+		if currentWorkhour != nil {
+			m.WorkhourEditModal = NewWorkhourEditModal(
+				msg.WorkhourID,
+				msg.Date,
+				currentWorkhour.DetailsID,
+				currentWorkhour.ProjectID,
+				currentWorkhour.Hours,
+				workhourDetails,
+				projects,
+			)
+		}
+		return m, nil
+
+	case WorkhoursViewModalDeleteRequestedMsg:
+		workhours := m.getWorkhoursForDate(msg.Date)
+
+		// Find the specific workhour
+		var currentWorkhour *domain.Workhour
+		for _, wh := range workhours {
+			if wh.ID == msg.WorkhourID {
+				currentWorkhour = &wh
+				break
+			}
+		}
+
+		if currentWorkhour != nil {
+			workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
+			projects, _ := repository.GetAllProjectsFromDB()
+			m.WorkhourDeleteModal = NewWorkhourDeleteModal(
+				msg.Date,
+				*currentWorkhour,
+				workhourDetails,
+				projects,
+			)
+		}
+		return m, nil
+
+	// Create modal
+	case WorkhourCreateSubmittedMsg:
+		m.WorkhourCreateModal = nil
 		newWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
@@ -77,14 +140,20 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case WorkhourEditedMsg:
+	case WorkhourCreateCanceledMsg:
+		m.WorkhourCreateModal = nil
+		return m, nil
+
+	// Edit modal
+	case WorkhourEditSubmittedMsg:
+		m.WorkhourEditModal = nil
 		updatedWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
 			ProjectID: msg.ProjectID,
 			Hours:     msg.Hours,
 		}
-		err := repository.UpdateWorkhour(msg.ID, updatedWorkhour)
+		err := repository.UpdateWorkhour(msg.WorkhourID, updatedWorkhour)
 		if err != nil {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
@@ -95,7 +164,13 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case WorkhourDeletedMsg:
+	case WorkhourEditCanceledMsg:
+		m.WorkhourEditModal = nil
+		return m, nil
+
+	// Delete modal
+	case WorkhourDeleteConfirmedMsg:
+		m.WorkhourDeleteModal = nil
 		err := repository.DeleteWorkhour(msg.ID)
 		if err != nil {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
@@ -108,6 +183,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		return m, nil
+
+	case WorkhourDeleteCanceledMsg:
+		m.WorkhourDeleteModal = nil
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -130,7 +209,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		if m.WorkhoursViewModal != nil || m.ReportGeneratorModal != nil {
+		if m.WorkhoursViewModal != nil || m.WorkhourCreateModal != nil || m.WorkhourEditModal != nil || m.WorkhourDeleteModal != nil || m.ReportGeneratorModal != nil {
 			break
 		}
 
@@ -250,8 +329,27 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.WorkhourDeleteModal != nil {
+		updatedModal, cmd := m.WorkhourDeleteModal.Update(msg)
+		m.WorkhourDeleteModal = &updatedModal
+		return m, cmd
+	}
+
+	if m.WorkhourEditModal != nil {
+		updatedModal, cmd := m.WorkhourEditModal.Update(msg)
+		m.WorkhourEditModal = &updatedModal
+		return m, cmd
+	}
+
+	if m.WorkhourCreateModal != nil {
+		updatedModal, cmd := m.WorkhourCreateModal.Update(msg)
+		m.WorkhourCreateModal = &updatedModal
+		return m, cmd
+	}
+
 	if m.WorkhoursViewModal != nil {
-		_, cmd := m.WorkhoursViewModal.Update(msg)
+		updatedModal, cmd := m.WorkhoursViewModal.Update(msg)
+		m.WorkhoursViewModal = &updatedModal
 		return m, cmd
 	}
 
@@ -265,6 +363,18 @@ func (m CalendarModel) View() string {
 
 	if m.ReportGeneratorModal != nil {
 		return m.ReportGeneratorModal.View(m.Width, m.Height)
+	}
+
+	if m.WorkhourDeleteModal != nil {
+		return m.WorkhourDeleteModal.View(m.Width, m.Height)
+	}
+
+	if m.WorkhourEditModal != nil {
+		return m.WorkhourEditModal.View(m.Width, m.Height)
+	}
+
+	if m.WorkhourCreateModal != nil {
+		return m.WorkhourCreateModal.View(m.Width, m.Height)
 	}
 
 	if m.WorkhoursViewModal != nil {

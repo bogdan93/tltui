@@ -124,14 +124,34 @@ func (f *MixedForm) GetCheckbox(index int) *FormCheckbox {
 	return nil
 }
 
-// Validate validates all FormField elements in the form
+// GetSelect returns a FormSelect by index (if the element is a FormSelect)
+func (f *MixedForm) GetSelect(index int) *FormSelect {
+	if index < 0 || index >= len(f.Elements) {
+		return nil
+	}
+	if select_, ok := f.Elements[index].(*FormSelect); ok {
+		return select_
+	}
+	return nil
+}
+
+// Validate validates all FormField and FormSelect elements in the form
 func (f *MixedForm) Validate() error {
 	f.ErrorMessage = ""
 
 	for i, element := range f.Elements {
-		// Only validate FormField elements
+		// Validate FormField elements
 		if field, ok := element.(*FormField); ok {
 			if err := field.Validate(); err != nil {
+				f.ErrorMessage = err.Error()
+				f.FocusField(i)
+				return err
+			}
+		}
+
+		// Validate FormSelect elements
+		if select_, ok := element.(*FormSelect); ok {
+			if err := select_.Validate(); err != nil {
 				f.ErrorMessage = err.Error()
 				f.FocusField(i)
 				return err

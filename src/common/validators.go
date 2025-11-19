@@ -49,3 +49,27 @@ func MaxLengthValidator(fieldName string, maxLength int) func(string) error {
 		return nil
 	}
 }
+
+// PositiveFloatValidator validates that the value is a positive float
+func PositiveFloatValidator(fieldName string) func(string) error {
+	return func(value string) error {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return &ValidationError{Field: fieldName, Message: fieldName + " is required"}
+		}
+
+		var num float64
+		_, err := strconv.ParseFloat(trimmed, 64)
+		if err != nil {
+			return &ValidationError{Field: fieldName, Message: fieldName + " must be a number"}
+		}
+
+		// Parse again to get the actual value
+		num, _ = strconv.ParseFloat(trimmed, 64)
+		if num <= 0 {
+			return &ValidationError{Field: fieldName, Message: fieldName + " must be a positive number"}
+		}
+
+		return nil
+	}
+}
