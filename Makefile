@@ -8,3 +8,7 @@ build: clean
 
 clean:
 	rm -f bin/app
+
+test:
+	go test ./src/... -v | grep -E "(FAIL|PASS|ok)"
+
