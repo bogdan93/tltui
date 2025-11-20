@@ -25,13 +25,13 @@ func (m WorkhourDetailsModel) handleWorkhourDetailCreated(msg WorkhourDetailsCre
 	err := repository.CreateWorkhourDetails(newWorkhourDetail)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
+		return m, common.NotifyError("Failed to create workhour detail", err)
 	}
 
 	details, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		return m, common.NotifyError("Failed to reload workhour details", err)
 	}
 	m.WorkhourDetails = details
 	m.NextID++
@@ -52,13 +52,13 @@ func (m WorkhourDetailsModel) handleWorkhourDetailEdited(msg WorkhourDetailsEdit
 	err := repository.UpdateWorkhourDetails(updatedWorkhourDetail)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
+		return m, common.NotifyError("Failed to update workhour detail", err)
 	}
 
 	details, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		return m, common.NotifyError("Failed to reload workhour details", err)
 	}
 	m.WorkhourDetails = details
 
@@ -72,13 +72,13 @@ func (m WorkhourDetailsModel) handleWorkhourDetailDeleted(msg WorkhourDetailsDel
 	err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
+		return m, common.NotifyError("Failed to delete workhour detail", err)
 	}
 
 	details, err := repository.GetAllWorkhourDetailsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
+		return m, common.NotifyError("Failed to reload workhour details", err)
 	}
 	m.WorkhourDetails = details
 

@@ -57,6 +57,22 @@ func DispatchInfoNotification(message string) tea.Cmd {
 	}
 }
 
+// Simplified notification helpers with shorter names
+// NotifyError creates an error notification from an error and action context
+func NotifyError(action string, err error) tea.Cmd {
+	return DispatchErrorNotification(action + ": " + err.Error())
+}
+
+// NotifySuccess creates a success notification
+func NotifySuccess(message string) tea.Cmd {
+	return DispatchSuccessNotification(message)
+}
+
+// NotifyInfo creates an info notification
+func NotifyInfo(message string) tea.Cmd {
+	return DispatchInfoNotification(message)
+}
+
 // RenderNotification renders a notification bar
 func RenderNotification(notification *Notification) string {
 	if notification == nil {

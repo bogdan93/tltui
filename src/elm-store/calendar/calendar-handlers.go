@@ -23,7 +23,7 @@ func (m CalendarModel) handleWorkhourCreated(msg WorkhourCreateSubmittedMsg) (Ca
 	}
 	_, err := repository.CreateWorkhour(newWorkhour)
 	if err != nil {
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
+		return m, common.NotifyError("Failed to create workhour", err)
 	}
 
 	// Restore view modal and refresh data
@@ -48,7 +48,7 @@ func (m CalendarModel) handleWorkhourEdited(msg WorkhourEditSubmittedMsg) (Calen
 	}
 	err := repository.UpdateWorkhour(msg.WorkhourID, updatedWorkhour)
 	if err != nil {
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
+		return m, common.NotifyError("Failed to update workhour", err)
 	}
 
 	// Restore view modal and refresh data
@@ -67,7 +67,7 @@ func (m CalendarModel) handleWorkhourEdited(msg WorkhourEditSubmittedMsg) (Calen
 func (m CalendarModel) handleWorkhourDeleted(msg WorkhourDeleteConfirmedMsg) (CalendarModel, tea.Cmd) {
 	err := repository.DeleteWorkhour(msg.ID)
 	if err != nil {
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
+		return m, common.NotifyError("Failed to delete workhour", err)
 	}
 
 	// Restore view modal and refresh data
@@ -177,7 +177,7 @@ func (m CalendarModel) handleYankWorkhours() (CalendarModel, tea.Cmd) {
 	}
 	m.YankedWorkhours = m.getWorkhoursForDate(m.SelectedDate)
 	m.YankedFromDate = m.SelectedDate
-	return m, common.DispatchSuccessNotification(fmt.Sprintf("📋 Copied %d workhour(s) from %s", len(m.YankedWorkhours), m.SelectedDate.Format("2006-01-02")))
+	return m, common.NotifySuccess(fmt.Sprintf("📋 Copied %d workhour(s) from %s", len(m.YankedWorkhours), m.SelectedDate.Format("2006-01-02")))
 }
 
 // handlePasteWorkhours handles the 'p' key press to paste workhours
@@ -188,7 +188,7 @@ func (m CalendarModel) handlePasteWorkhours() (CalendarModel, tea.Cmd) {
 
 	err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 	if err != nil {
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to clear existing workhours: %v", err))
+		return m, common.NotifyError("Failed to clear existing workhours", err)
 	}
 
 	for _, wh := range m.YankedWorkhours {
@@ -200,7 +200,7 @@ func (m CalendarModel) handlePasteWorkhours() (CalendarModel, tea.Cmd) {
 		}
 		_, err := repository.CreateWorkhour(newWorkhour)
 		if err != nil {
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to paste workhour: %v", err))
+			return m, common.NotifyError("Failed to paste workhour", err)
 		}
 	}
 	return m, nil
@@ -210,7 +210,7 @@ func (m CalendarModel) handlePasteWorkhours() (CalendarModel, tea.Cmd) {
 func (m CalendarModel) handleDeleteWorkhours() (CalendarModel, tea.Cmd) {
 	err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 	if err != nil {
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhours: %v", err))
+		return m, common.NotifyError("Failed to delete workhours", err)
 	}
 	if m.isSameDay(m.SelectedDate, m.YankedFromDate) {
 		m.YankedWorkhours = nil

@@ -24,13 +24,13 @@ func (m ProjectsModel) handleProjectCreated(msg ProjectCreatedMsg) (ProjectsMode
 	err := repository.CreateProject(newProject)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
+		return m, common.NotifyError("Failed to create project", err)
 	}
 
 	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		return m, common.NotifyError("Failed to reload projects", err)
 	}
 	m.Projects = projects
 	m.NextID++
@@ -50,13 +50,13 @@ func (m ProjectsModel) handleProjectEdited(msg ProjectEditedMsg) (ProjectsModel,
 	err := repository.UpdateProject(updatedProject)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
+		return m, common.NotifyError("Failed to update project", err)
 	}
 
 	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		return m, common.NotifyError("Failed to reload projects", err)
 	}
 	m.Projects = projects
 
@@ -70,13 +70,13 @@ func (m ProjectsModel) handleProjectDeleted(msg ProjectDeletedMsg) (ProjectsMode
 	err := repository.DeleteProject(msg.ProjectID)
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
+		return m, common.NotifyError("Failed to delete project", err)
 	}
 
 	projects, err := repository.GetAllProjectsFromDB()
 	if err != nil {
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
+		return m, common.NotifyError("Failed to reload projects", err)
 	}
 	m.Projects = projects
 

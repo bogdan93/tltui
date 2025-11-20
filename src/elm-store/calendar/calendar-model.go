@@ -57,7 +57,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ReportGenerationFailedMsg:
 		m.ActiveModal = nil
-		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
+		return m, common.NotifyError("Failed to generate report", msg.Error)
 
 	// View modal requests
 	case WorkhoursViewModalCreateRequestedMsg:
