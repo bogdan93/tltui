@@ -102,5 +102,5 @@ func (m *WorkhourDetailsModel) updateTableRows() {
 			isWorkStr,
 		})
 	}
-	m.WorkhourDetailsTable.SetRows(rows)
+	m.TableView.SetRows(rows)
 }

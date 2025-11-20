@@ -2,14 +2,13 @@ package projects
 
 import (
 	"fmt"
+	"tltui/src/common"
 	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type ProjectsModel struct {
@@ -18,10 +17,9 @@ type ProjectsModel struct {
 
 	ActiveModal ProjectModal
 
-	ProjectsTable    table.Model
-	ProjectsViewport viewport.Model
-	Projects         []domain.Project
-	NextID           int
+	TableView common.TableView
+	Projects  []domain.Project
+	NextID    int
 }
 
 func NewProjectsModel() ProjectsModel {
@@ -55,29 +53,8 @@ func NewProjectsModel() ProjectsModel {
 		})
 	}
 
-	m.ProjectsTable = table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(20),
-		table.WithWidth(50),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(true)
-
-	m.ProjectsTable.SetStyles(s)
-	m.ProjectsViewport = viewport.New(100, 100)
-	m.ProjectsTable.SetHeight(100)
+	m.TableView = common.NewTableView(columns, rows)
+	m.TableView.Table.SetHeight(100)
 
 	return m
 }
@@ -113,10 +90,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Width = msg.Width
 		m.Height = msg.Height
 		verticalMargin := 12
-		tableHeight := msg.Height - verticalMargin
-		m.ProjectsViewport.Width = msg.Width - 2
-		m.ProjectsViewport.Height = tableHeight
-		m.ProjectsTable.SetHeight(tableHeight)
+		m.TableView.SetSize(msg.Width, msg.Height, verticalMargin)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -173,30 +147,22 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
-	m.ProjectsTable, cmd = m.ProjectsTable.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.ProjectsViewport, cmd = m.ProjectsViewport.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
+	m.TableView, cmd = m.TableView.Update(msg)
+	return m, cmd
 }
 
 func (m ProjectsModel) View() string {
 	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "d: delete", "q: quit")
-	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
 
 	if m.ActiveModal != nil {
 		return m.ActiveModal.View(m.Width, m.Height)
 	}
 
-	return m.ProjectsViewport.View() + "\n" + helpText
+	return m.TableView.View() + "\n" + helpText
 }
 
 func (m ProjectsModel) getSelectedProject() *domain.Project {
-	cursor := m.ProjectsTable.Cursor()
+	cursor := m.TableView.Cursor()
 	if cursor >= 0 && cursor < len(m.Projects) {
 		return &m.Projects[cursor]
 	}

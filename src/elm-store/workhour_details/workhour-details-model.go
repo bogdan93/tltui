@@ -2,14 +2,13 @@ package workhour_details
 
 import (
 	"fmt"
+	"tltui/src/common"
 	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type WorkhourDetailsModel struct {
@@ -18,10 +17,9 @@ type WorkhourDetailsModel struct {
 
 	ActiveModal WorkhourDetailsModal
 
-	WorkhourDetailsTable    table.Model
-	WorkhourDetailsViewport viewport.Model
-	WorkhourDetails         []domain.WorkhourDetails
-	NextID                  int
+	TableView       common.TableView
+	WorkhourDetails []domain.WorkhourDetails
+	NextID          int
 }
 
 func NewWorkhourDetailsModel() WorkhourDetailsModel {
@@ -61,29 +59,8 @@ func NewWorkhourDetailsModel() WorkhourDetailsModel {
 		})
 	}
 
-	m.WorkhourDetailsTable = table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(20),
-		table.WithWidth(60),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(true)
-
-	m.WorkhourDetailsTable.SetStyles(s)
-	m.WorkhourDetailsViewport = viewport.New(100, 100)
-	m.WorkhourDetailsTable.SetHeight(100)
+	m.TableView = common.NewTableView(columns, rows)
+	m.TableView.Table.SetHeight(100)
 
 	return m
 }
@@ -119,10 +96,7 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Width = msg.Width
 		m.Height = msg.Height
 		verticalMargin := 12 // Increased to account for tab bar (4 lines) + padding
-		tableHeight := msg.Height - verticalMargin
-		m.WorkhourDetailsViewport.Width = msg.Width - 2
-		m.WorkhourDetailsViewport.Height = tableHeight
-		m.WorkhourDetailsTable.SetHeight(tableHeight)
+		m.TableView.SetSize(msg.Width, msg.Height, verticalMargin)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -180,30 +154,22 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
-	m.WorkhourDetailsTable, cmd = m.WorkhourDetailsTable.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.WorkhourDetailsViewport, cmd = m.WorkhourDetailsViewport.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
+	m.TableView, cmd = m.TableView.Update(msg)
+	return m, cmd
 }
 
 func (m WorkhourDetailsModel) View() string {
 	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "d: delete", "q: quit")
-	m.WorkhourDetailsViewport.SetContent(m.WorkhourDetailsTable.View())
 
 	if m.ActiveModal != nil {
 		return m.ActiveModal.View(m.Width, m.Height)
 	}
 
-	return m.WorkhourDetailsViewport.View() + "\n" + helpText
+	return m.TableView.View() + "\n" + helpText
 }
 
 func (m WorkhourDetailsModel) getSelectedWorkhourDetail() *domain.WorkhourDetails {
-	cursor := m.WorkhourDetailsTable.Cursor()
+	cursor := m.TableView.Cursor()
 	if cursor >= 0 && cursor < len(m.WorkhourDetails) {
 		return &m.WorkhourDetails[cursor]
 	}

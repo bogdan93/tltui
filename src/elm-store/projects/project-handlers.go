@@ -95,5 +95,5 @@ func (m *ProjectsModel) updateTableRows() {
 			fmt.Sprintf("%d", p.OdooID),
 		})
 	}
-	m.ProjectsTable.SetRows(rows)
+	m.TableView.SetRows(rows)
 }
