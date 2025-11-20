@@ -80,6 +80,7 @@ func NewWorkhourEditModal(
 	hoursField := common.NewRequiredFormField("Hours", fmt.Sprintf("%.1f", currentHours), 20).
 		WithCharLimit(5).
 		WithValidator(common.PositiveFloatValidator("Hours"))
+  hoursField.Input.SetValue(fmt.Sprintf("%.1f", currentHours))
 
 	// Create form
 	form := common.NewMixedForm(detailsSelect, projectSelect, &hoursField)

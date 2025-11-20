@@ -65,8 +65,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd1, cmd2, cmd3)
 
 	case tea.KeyMsg:
-		isModalOpen := m.Calendar.WorkhoursViewModal != nil ||
-			m.Calendar.ReportGeneratorModal != nil ||
+		isModalOpen := m.Calendar.ActiveModal != nil ||
 			m.Calendar.ShowHelp ||
 			m.Projects.ProjectEditModal != nil ||
 			m.Projects.ProjectCreateModal != nil ||

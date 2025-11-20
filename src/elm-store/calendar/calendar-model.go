@@ -20,12 +20,9 @@ type CalendarModel struct {
 	ViewMonth    int // Month being viewed (1-12)
 	ViewYear     int // Year being viewed
 
-	WorkhoursViewModal   *WorkhoursViewModal
-	WorkhourCreateModal  *WorkhourCreateModal
-	WorkhourEditModal    *WorkhourEditModal
-	WorkhourDeleteModal  *WorkhourDeleteModal
-	ReportGeneratorModal *ReportGeneratorModal
-	ShowHelp             bool
+	ActiveModal     CalendarModal               // Currently displayed modal
+	ViewModalParent *WorkhoursViewModalWrapper // Saved view modal when CRUD modals are open
+	ShowHelp        bool
 
 	YankedWorkhours []domain.Workhour
 	YankedFromDate  time.Time
@@ -47,29 +44,41 @@ func (m CalendarModel) Init() tea.Cmd {
 func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case WorkhoursViewModalClosedMsg:
-		m.WorkhoursViewModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ReportGeneratorModalClosedMsg:
-		m.ReportGeneratorModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ReportGeneratedMsg:
-		m.ReportGeneratorModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ReportGenerationFailedMsg:
-		m.ReportGeneratorModal = nil
+		m.ActiveModal = nil
 		return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to generate report: %v", msg.Error))
 
 	// View modal requests
 	case WorkhoursViewModalCreateRequestedMsg:
+		// Save current view modal
+		if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
+			m.ViewModalParent = viewWrapper
+		}
+
 		workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
 		projects, _ := repository.GetAllProjectsFromDB()
-		m.WorkhourCreateModal = NewWorkhourCreateModal(msg.Date, workhourDetails, projects)
+		m.ActiveModal = &WorkhourCreateModalWrapper{
+			modal: NewWorkhourCreateModal(msg.Date, workhourDetails, projects),
+		}
 		return m, nil
 
 	case WorkhoursViewModalEditRequestedMsg:
+		// Save current view modal
+		if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
+			m.ViewModalParent = viewWrapper
+		}
+
 		workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
 		projects, _ := repository.GetAllProjectsFromDB()
 		workhours := m.getWorkhoursForDate(msg.Date)
@@ -84,19 +93,26 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if currentWorkhour != nil {
-			m.WorkhourEditModal = NewWorkhourEditModal(
-				msg.WorkhourID,
-				msg.Date,
-				currentWorkhour.DetailsID,
-				currentWorkhour.ProjectID,
-				currentWorkhour.Hours,
-				workhourDetails,
-				projects,
-			)
+			m.ActiveModal = &WorkhourEditModalWrapper{
+				modal: NewWorkhourEditModal(
+					msg.WorkhourID,
+					msg.Date,
+					currentWorkhour.DetailsID,
+					currentWorkhour.ProjectID,
+					currentWorkhour.Hours,
+					workhourDetails,
+					projects,
+				),
+			}
 		}
 		return m, nil
 
 	case WorkhoursViewModalDeleteRequestedMsg:
+		// Save current view modal
+		if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
+			m.ViewModalParent = viewWrapper
+		}
+
 		workhours := m.getWorkhoursForDate(msg.Date)
 
 		// Find the specific workhour
@@ -111,18 +127,19 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if currentWorkhour != nil {
 			workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
 			projects, _ := repository.GetAllProjectsFromDB()
-			m.WorkhourDeleteModal = NewWorkhourDeleteModal(
-				msg.Date,
-				*currentWorkhour,
-				workhourDetails,
-				projects,
-			)
+			m.ActiveModal = &WorkhourDeleteModalWrapper{
+				modal: NewWorkhourDeleteModal(
+					msg.Date,
+					*currentWorkhour,
+					workhourDetails,
+					projects,
+				),
+			}
 		}
 		return m, nil
 
 	// Create modal
 	case WorkhourCreateSubmittedMsg:
-		m.WorkhourCreateModal = nil
 		newWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
@@ -134,19 +151,29 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour: %v", err))
 		}
 
-		if m.WorkhoursViewModal != nil {
-			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+		// Restore view modal and refresh data
+		if m.ViewModalParent != nil && m.ViewModalParent.modal != nil {
+			m.ViewModalParent.modal.Workhours = m.getWorkhoursForDate(m.ViewModalParent.modal.Date)
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
 		}
 
 		return m, nil
 
 	case WorkhourCreateCanceledMsg:
-		m.WorkhourCreateModal = nil
+		// Restore view modal without refresh
+		if m.ViewModalParent != nil {
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
+		}
 		return m, nil
 
 	// Edit modal
 	case WorkhourEditSubmittedMsg:
-		m.WorkhourEditModal = nil
 		updatedWorkhour := domain.Workhour{
 			Date:      msg.Date,
 			DetailsID: msg.DetailsID,
@@ -158,35 +185,57 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour: %v", err))
 		}
 
-		if m.WorkhoursViewModal != nil {
-			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
+		// Restore view modal and refresh data
+		if m.ViewModalParent != nil && m.ViewModalParent.modal != nil {
+			m.ViewModalParent.modal.Workhours = m.getWorkhoursForDate(m.ViewModalParent.modal.Date)
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
 		}
 
 		return m, nil
 
 	case WorkhourEditCanceledMsg:
-		m.WorkhourEditModal = nil
+		// Restore view modal without refresh
+		if m.ViewModalParent != nil {
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
+		}
 		return m, nil
 
 	// Delete modal
 	case WorkhourDeleteConfirmedMsg:
-		m.WorkhourDeleteModal = nil
 		err := repository.DeleteWorkhour(msg.ID)
 		if err != nil {
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour: %v", err))
 		}
 
-		if m.WorkhoursViewModal != nil {
-			m.WorkhoursViewModal.Workhours = m.getWorkhoursForDate(m.WorkhoursViewModal.Date)
-			if m.WorkhoursViewModal.SelectedWorkhourIndex >= len(m.WorkhoursViewModal.Workhours) && len(m.WorkhoursViewModal.Workhours) > 0 {
-				m.WorkhoursViewModal.SelectedWorkhourIndex = len(m.WorkhoursViewModal.Workhours) - 1
+		// Restore view modal and refresh data
+		if m.ViewModalParent != nil && m.ViewModalParent.modal != nil {
+			m.ViewModalParent.modal.Workhours = m.getWorkhoursForDate(m.ViewModalParent.modal.Date)
+			// Adjust selected index if needed
+			if m.ViewModalParent.modal.SelectedWorkhourIndex >= len(m.ViewModalParent.modal.Workhours) && len(m.ViewModalParent.modal.Workhours) > 0 {
+				m.ViewModalParent.modal.SelectedWorkhourIndex = len(m.ViewModalParent.modal.Workhours) - 1
 			}
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
 		}
 
 		return m, nil
 
 	case WorkhourDeleteCanceledMsg:
-		m.WorkhourDeleteModal = nil
+		// Restore view modal without refresh
+		if m.ViewModalParent != nil {
+			m.ActiveModal = m.ViewModalParent
+			m.ViewModalParent = nil
+		} else {
+			m.ActiveModal = nil
+		}
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -209,7 +258,7 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		if m.WorkhoursViewModal != nil || m.WorkhourCreateModal != nil || m.WorkhourEditModal != nil || m.WorkhourDeleteModal != nil || m.ReportGeneratorModal != nil {
+		if m.ActiveModal != nil {
 			break
 		}
 
@@ -302,54 +351,35 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "g":
-			if m.ReportGeneratorModal == nil {
-				m.ReportGeneratorModal = NewReportGeneratorModal(m.ViewMonth, m.ViewYear)
+			if m.ActiveModal == nil {
+				m.ActiveModal = &ReportGeneratorModalWrapper{
+					modal: NewReportGeneratorModal(m.ViewMonth, m.ViewYear),
+				}
 				return m, nil
 			}
 
 		case "enter":
-			if m.WorkhoursViewModal == nil {
+			if m.ActiveModal == nil {
 				workhours := m.getWorkhoursForDate(m.SelectedDate)
 				workhourDetails, _ := repository.GetAllWorkhourDetailsFromDB()
 				projects, _ := repository.GetAllProjectsFromDB()
-				m.WorkhoursViewModal = NewWorkhoursViewModal(
-					m.SelectedDate,
-					workhours,
-					workhourDetails,
-					projects,
-				)
+				m.ActiveModal = &WorkhoursViewModalWrapper{
+					modal: NewWorkhoursViewModal(
+						m.SelectedDate,
+						workhours,
+						workhourDetails,
+						projects,
+					),
+				}
 				return m, nil
 			}
 		}
 	}
 
-	if m.ReportGeneratorModal != nil {
-		updatedModal, cmd := m.ReportGeneratorModal.Update(msg)
-		m.ReportGeneratorModal = &updatedModal
-		return m, cmd
-	}
-
-	if m.WorkhourDeleteModal != nil {
-		updatedModal, cmd := m.WorkhourDeleteModal.Update(msg)
-		m.WorkhourDeleteModal = &updatedModal
-		return m, cmd
-	}
-
-	if m.WorkhourEditModal != nil {
-		updatedModal, cmd := m.WorkhourEditModal.Update(msg)
-		m.WorkhourEditModal = &updatedModal
-		return m, cmd
-	}
-
-	if m.WorkhourCreateModal != nil {
-		updatedModal, cmd := m.WorkhourCreateModal.Update(msg)
-		m.WorkhourCreateModal = &updatedModal
-		return m, cmd
-	}
-
-	if m.WorkhoursViewModal != nil {
-		updatedModal, cmd := m.WorkhoursViewModal.Update(msg)
-		m.WorkhoursViewModal = &updatedModal
+	// Delegate to active modal if any
+	if m.ActiveModal != nil {
+		updatedModal, cmd := m.ActiveModal.Update(msg)
+		m.ActiveModal = updatedModal
 		return m, cmd
 	}
 
@@ -361,24 +391,8 @@ func (m CalendarModel) View() string {
 		return m.renderHelpModal()
 	}
 
-	if m.ReportGeneratorModal != nil {
-		return m.ReportGeneratorModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhourDeleteModal != nil {
-		return m.WorkhourDeleteModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhourEditModal != nil {
-		return m.WorkhourEditModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhourCreateModal != nil {
-		return m.WorkhourCreateModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhoursViewModal != nil {
-		return m.WorkhoursViewModal.View(m.Width, m.Height)
+	if m.ActiveModal != nil {
+		return m.ActiveModal.View(m.Width, m.Height)
 	}
 
 	var sb strings.Builder

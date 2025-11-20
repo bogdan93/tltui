@@ -196,7 +196,7 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		verticalMargin := 12 // Increased to account for tab bar (4 lines) + padding
+		verticalMargin := 12
 		tableHeight := msg.Height - verticalMargin
 		m.ProjectsViewport.Width = msg.Width - 2
 		m.ProjectsViewport.Height = tableHeight
