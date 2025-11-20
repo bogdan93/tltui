@@ -2,7 +2,6 @@ package workhour_details
 
 import (
 	"fmt"
-	"tltui/src/common"
 	"tltui/src/domain"
 	"tltui/src/domain/repository"
 	"tltui/src/render"
@@ -96,119 +95,21 @@ func (m WorkhourDetailsModel) Init() tea.Cmd {
 func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case WorkhourDetailsCreatedMsg:
-		newWorkhourDetail := domain.WorkhourDetails{
-			ID:        m.NextID,
-			Name:      msg.Name,
-			ShortName: msg.ShortName,
-			IsWork:    msg.IsWork,
-		}
-
-		err := repository.CreateWorkhourDetails(newWorkhourDetail)
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
-		}
-
-		details, err := repository.GetAllWorkhourDetailsFromDB()
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
-		}
-		m.WorkhourDetails = details
-		m.NextID++
-
-		rows := []table.Row{}
-		for _, wd := range m.WorkhourDetails {
-			isWorkStr := "No"
-			if wd.IsWork {
-				isWorkStr = "Yes"
-			}
-			rows = append(rows, table.Row{
-				fmt.Sprintf("%d", wd.ID),
-				wd.Name,
-				wd.ShortName,
-				isWorkStr,
-			})
-		}
-		m.WorkhourDetailsTable.SetRows(rows)
-		m.ActiveModal = nil
-		return m, nil
+		return m.handleWorkhourDetailCreated(msg)
 
 	case WorkhourDetailsCreateCanceledMsg:
 		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsDeletedMsg:
-		err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
-		}
-
-		details, err := repository.GetAllWorkhourDetailsFromDB()
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
-		}
-		m.WorkhourDetails = details
-
-		rows := []table.Row{}
-		for _, wd := range m.WorkhourDetails {
-			isWorkStr := "No"
-			if wd.IsWork {
-				isWorkStr = "Yes"
-			}
-			rows = append(rows, table.Row{
-				fmt.Sprintf("%d", wd.ID),
-				wd.Name,
-				wd.ShortName,
-				isWorkStr,
-			})
-		}
-		m.WorkhourDetailsTable.SetRows(rows)
-		m.ActiveModal = nil
-		return m, nil
+		return m.handleWorkhourDetailDeleted(msg)
 
 	case WorkhourDetailsDeleteCanceledMsg:
 		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsEditedMsg:
-		updatedWorkhourDetail := domain.WorkhourDetails{
-			ID:        msg.WorkhourDetailID,
-			Name:      msg.Name,
-			ShortName: msg.ShortName,
-			IsWork:    msg.IsWork,
-		}
-		err := repository.UpdateWorkhourDetails(updatedWorkhourDetail)
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
-		}
-
-		details, err := repository.GetAllWorkhourDetailsFromDB()
-		if err != nil {
-			m.ActiveModal = nil
-			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
-		}
-		m.WorkhourDetails = details
-
-		rows := []table.Row{}
-		for _, wd := range m.WorkhourDetails {
-			isWorkStr := "No"
-			if wd.IsWork {
-				isWorkStr = "Yes"
-			}
-			rows = append(rows, table.Row{
-				fmt.Sprintf("%d", wd.ID),
-				wd.Name,
-				wd.ShortName,
-				isWorkStr,
-			})
-		}
-		m.WorkhourDetailsTable.SetRows(rows)
-		m.ActiveModal = nil
-		return m, nil
+		return m.handleWorkhourDetailEdited(msg)
 
 	case WorkhourDetailsEditCanceledMsg:
 		m.ActiveModal = nil
