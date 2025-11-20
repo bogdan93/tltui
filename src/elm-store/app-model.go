@@ -147,7 +147,14 @@ func (m AppModel) View() string {
 		return ""
 	}
 
-	mainView := render.RenderPageLayoutWithTabs(activeTabIndex, content)
+	isModalOpened := m.Calendar.ActiveModal != nil || m.Projects.ProjectEditModal != nil || m.Projects.ProjectCreateModal != nil || m.Projects.ProjectDeleteModal != nil || m.WorkhourDetails.WorkhourDetailsEditModal != nil || m.WorkhourDetails.WorkhourDetailsCreateModal != nil || m.WorkhourDetails.WorkhourDetailsDeleteModal != nil
+
+	mainView := ""
+	if !isModalOpened {
+		mainView = render.RenderPageLayoutWithTabs(activeTabIndex, content)
+	} else {
+		mainView = content;
+	}
 
 	if m.Notification != nil {
 		return common.RenderNotificationOverlay(m.Notification, mainView)
