@@ -17,9 +17,7 @@ type ProjectsModel struct {
 	Width  int
 	Height int
 
-	ProjectEditModal   *ProjectEditModal
-	ProjectCreateModal *ProjectCreateModal
-	ProjectDeleteModal *ProjectDeleteModal
+	ActiveModal ProjectModal
 
 	ProjectsTable    table.Model
 	ProjectsViewport viewport.Model
@@ -100,13 +98,13 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		err := repository.CreateProject(newProject)
 		if err != nil {
-			m.ProjectCreateModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create project: %v", err))
 		}
 
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
-			m.ProjectCreateModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
@@ -121,11 +119,11 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.ProjectsTable.SetRows(rows)
-		m.ProjectCreateModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ProjectCreateCanceledMsg:
-		m.ProjectCreateModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ProjectEditedMsg:
@@ -136,13 +134,13 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := repository.UpdateProject(updatedProject)
 		if err != nil {
-			m.ProjectEditModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update project: %v", err))
 		}
 
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
-			m.ProjectEditModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
@@ -156,23 +154,23 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.ProjectsTable.SetRows(rows)
-		m.ProjectEditModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ProjectEditCanceledMsg:
-		m.ProjectEditModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ProjectDeletedMsg:
 		err := repository.DeleteProject(msg.ProjectID)
 		if err != nil {
-			m.ProjectDeleteModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete project: %v", err))
 		}
 
 		projects, err := repository.GetAllProjectsFromDB()
 		if err != nil {
-			m.ProjectDeleteModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload projects: %v", err))
 		}
 		m.Projects = projects
@@ -186,11 +184,11 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.ProjectsTable.SetRows(rows)
-		m.ProjectDeleteModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case ProjectDeleteCanceledMsg:
-		m.ProjectDeleteModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -207,62 +205,52 @@ func (m ProjectsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			// Only close delete modal on 'q' (edit/create modals have text inputs where user might type 'q')
-			if m.ProjectDeleteModal != nil {
-				m.ProjectDeleteModal = nil
+			if _, isDelete := m.ActiveModal.(ProjectDeleteModalWrapper); isDelete {
+				m.ActiveModal = nil
 				return m, nil
 			}
 			// If edit/create modal is open, don't intercept - let the modal/textinput handle it
-			if m.ProjectEditModal != nil || m.ProjectCreateModal != nil {
+			if m.ActiveModal != nil {
 				break // Don't quit, let it pass through to modal forwarding
 			}
 			// No modal open, quit
 			return m, tea.Quit
 
 		case "n":
-			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
-				m.ProjectCreateModal = NewProjectCreateModal()
+			if m.ActiveModal == nil {
+				m.ActiveModal = ProjectCreateModalWrapper{NewProjectCreateModal()}
 				return m, nil
 			}
 
 		case "d":
-			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
+			if m.ActiveModal == nil {
 				selectedProject := m.getSelectedProject()
 				if selectedProject != nil {
-					m.ProjectDeleteModal = NewProjectDeleteModal(
+					m.ActiveModal = ProjectDeleteModalWrapper{NewProjectDeleteModal(
 						selectedProject.ID,
 						selectedProject.Name,
-					)
+					)}
 					return m, nil
 				}
 			}
 
 		case "enter":
-			if m.ProjectEditModal == nil && m.ProjectCreateModal == nil && m.ProjectDeleteModal == nil {
+			if m.ActiveModal == nil {
 				selectedProject := m.getSelectedProject()
 				if selectedProject != nil {
-					m.ProjectEditModal = NewProjectEditModal(
+					m.ActiveModal = ProjectEditModalWrapper{NewProjectEditModal(
 						selectedProject.ID,
 						selectedProject.Name,
 						selectedProject.OdooID,
-					)
+					)}
 					return m, nil
 				}
 			}
 		}
 	}
 
-	if m.ProjectEditModal != nil {
-		_, cmd := m.ProjectEditModal.Update(msg)
-		return m, cmd
-	}
-
-	if m.ProjectCreateModal != nil {
-		_, cmd := m.ProjectCreateModal.Update(msg)
-		return m, cmd
-	}
-
-	if m.ProjectDeleteModal != nil {
-		_, cmd := m.ProjectDeleteModal.Update(msg)
+	if m.ActiveModal != nil {
+		_, cmd := m.ActiveModal.Update(msg)
 		return m, cmd
 	}
 
@@ -282,16 +270,8 @@ func (m ProjectsModel) View() string {
 	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "d: delete", "q: quit")
 	m.ProjectsViewport.SetContent(m.ProjectsTable.View())
 
-	if m.ProjectEditModal != nil {
-		return m.ProjectEditModal.View(m.Width, m.Height)
-	}
-
-	if m.ProjectCreateModal != nil {
-		return m.ProjectCreateModal.View(m.Width, m.Height)
-	}
-
-	if m.ProjectDeleteModal != nil {
-		return m.ProjectDeleteModal.View(m.Width, m.Height)
+	if m.ActiveModal != nil {
+		return m.ActiveModal.View(m.Width, m.Height)
 	}
 
 	return m.ProjectsViewport.View() + "\n" + helpText

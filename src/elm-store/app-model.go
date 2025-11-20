@@ -67,12 +67,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		isModalOpen := m.Calendar.ActiveModal != nil ||
 			m.Calendar.ShowHelp ||
-			m.Projects.ProjectEditModal != nil ||
-			m.Projects.ProjectCreateModal != nil ||
-			m.Projects.ProjectDeleteModal != nil ||
-			m.WorkhourDetails.WorkhourDetailsEditModal != nil ||
-			m.WorkhourDetails.WorkhourDetailsCreateModal != nil ||
-			m.WorkhourDetails.WorkhourDetailsDeleteModal != nil
+			m.Projects.ActiveModal != nil ||
+			m.WorkhourDetails.ActiveModal != nil
 
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
@@ -147,7 +143,7 @@ func (m AppModel) View() string {
 		return ""
 	}
 
-	isModalOpened := m.Calendar.ActiveModal != nil || m.Projects.ProjectEditModal != nil || m.Projects.ProjectCreateModal != nil || m.Projects.ProjectDeleteModal != nil || m.WorkhourDetails.WorkhourDetailsEditModal != nil || m.WorkhourDetails.WorkhourDetailsCreateModal != nil || m.WorkhourDetails.WorkhourDetailsDeleteModal != nil
+	isModalOpened := m.Calendar.ActiveModal != nil || m.Projects.ActiveModal != nil || m.WorkhourDetails.ActiveModal != nil
 
 	mainView := ""
 	if !isModalOpened {

@@ -17,9 +17,7 @@ type WorkhourDetailsModel struct {
 	Width  int
 	Height int
 
-	WorkhourDetailsEditModal   *WorkhourDetailsEditModal
-	WorkhourDetailsCreateModal *WorkhourDetailsCreateModal
-	WorkhourDetailsDeleteModal *WorkhourDetailsDeleteModal
+	ActiveModal WorkhourDetailsModal
 
 	WorkhourDetailsTable    table.Model
 	WorkhourDetailsViewport viewport.Model
@@ -107,13 +105,13 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		err := repository.CreateWorkhourDetails(newWorkhourDetail)
 		if err != nil {
-			m.WorkhourDetailsCreateModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to create workhour detail: %v", err))
 		}
 
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
-			m.WorkhourDetailsCreateModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
@@ -133,23 +131,23 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.WorkhourDetailsTable.SetRows(rows)
-		m.WorkhourDetailsCreateModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsCreateCanceledMsg:
-		m.WorkhourDetailsCreateModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsDeletedMsg:
 		err := repository.DeleteWorkhourDetails(msg.WorkhourDetailID)
 		if err != nil {
-			m.WorkhourDetailsDeleteModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to delete workhour detail: %v", err))
 		}
 
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
-			m.WorkhourDetailsDeleteModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
@@ -168,11 +166,11 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.WorkhourDetailsTable.SetRows(rows)
-		m.WorkhourDetailsDeleteModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsDeleteCanceledMsg:
-		m.WorkhourDetailsDeleteModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsEditedMsg:
@@ -184,13 +182,13 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		err := repository.UpdateWorkhourDetails(updatedWorkhourDetail)
 		if err != nil {
-			m.WorkhourDetailsEditModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to update workhour detail: %v", err))
 		}
 
 		details, err := repository.GetAllWorkhourDetailsFromDB()
 		if err != nil {
-			m.WorkhourDetailsEditModal = nil
+			m.ActiveModal = nil
 			return m, common.DispatchErrorNotification(fmt.Sprintf("Failed to reload workhour details: %v", err))
 		}
 		m.WorkhourDetails = details
@@ -209,11 +207,11 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 		}
 		m.WorkhourDetailsTable.SetRows(rows)
-		m.WorkhourDetailsEditModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case WorkhourDetailsEditCanceledMsg:
-		m.WorkhourDetailsEditModal = nil
+		m.ActiveModal = nil
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -230,63 +228,53 @@ func (m WorkhourDetailsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q":
 			// Only close delete modal on 'q' (edit/create modals have text inputs where user might type 'q')
-			if m.WorkhourDetailsDeleteModal != nil {
-				m.WorkhourDetailsDeleteModal = nil
+			if _, isDelete := m.ActiveModal.(WorkhourDetailsDeleteModalWrapper); isDelete {
+				m.ActiveModal = nil
 				return m, nil
 			}
 			// If edit/create modal is open, don't intercept - let the modal/textinput handle it
-			if m.WorkhourDetailsEditModal != nil || m.WorkhourDetailsCreateModal != nil {
+			if m.ActiveModal != nil {
 				break // Don't quit, let it pass through to modal forwarding
 			}
 			// No modal open, quit
 			return m, tea.Quit
 
 		case "n":
-			if m.WorkhourDetailsEditModal == nil && m.WorkhourDetailsCreateModal == nil && m.WorkhourDetailsDeleteModal == nil {
-				m.WorkhourDetailsCreateModal = NewWorkhourDetailsCreateModal()
+			if m.ActiveModal == nil {
+				m.ActiveModal = WorkhourDetailsCreateModalWrapper{NewWorkhourDetailsCreateModal()}
 				return m, nil
 			}
 
 		case "d":
-			if m.WorkhourDetailsEditModal == nil && m.WorkhourDetailsCreateModal == nil && m.WorkhourDetailsDeleteModal == nil {
+			if m.ActiveModal == nil {
 				selectedWorkhourDetail := m.getSelectedWorkhourDetail()
 				if selectedWorkhourDetail != nil {
-					m.WorkhourDetailsDeleteModal = NewWorkhourDetailsDeleteModal(
+					m.ActiveModal = WorkhourDetailsDeleteModalWrapper{NewWorkhourDetailsDeleteModal(
 						selectedWorkhourDetail.ID,
 						selectedWorkhourDetail.Name,
-					)
+					)}
 					return m, nil
 				}
 			}
 
 		case "enter":
-			if m.WorkhourDetailsEditModal == nil && m.WorkhourDetailsCreateModal == nil && m.WorkhourDetailsDeleteModal == nil {
+			if m.ActiveModal == nil {
 				selectedWorkhourDetail := m.getSelectedWorkhourDetail()
 				if selectedWorkhourDetail != nil {
-					m.WorkhourDetailsEditModal = NewWorkhourDetailsEditModal(
+					m.ActiveModal = WorkhourDetailsEditModalWrapper{NewWorkhourDetailsEditModal(
 						selectedWorkhourDetail.ID,
 						selectedWorkhourDetail.Name,
 						selectedWorkhourDetail.ShortName,
 						selectedWorkhourDetail.IsWork,
-					)
+					)}
 					return m, nil
 				}
 			}
 		}
 	}
 
-	if m.WorkhourDetailsEditModal != nil {
-		_, cmd := m.WorkhourDetailsEditModal.Update(msg)
-		return m, cmd
-	}
-
-	if m.WorkhourDetailsCreateModal != nil {
-		_, cmd := m.WorkhourDetailsCreateModal.Update(msg)
-		return m, cmd
-	}
-
-	if m.WorkhourDetailsDeleteModal != nil {
-		_, cmd := m.WorkhourDetailsDeleteModal.Update(msg)
+	if m.ActiveModal != nil {
+		_, cmd := m.ActiveModal.Update(msg)
 		return m, cmd
 	}
 
@@ -306,16 +294,8 @@ func (m WorkhourDetailsModel) View() string {
 	helpText := render.RenderHelpText("↑/↓: navigate", "enter: edit", "n: new", "d: delete", "q: quit")
 	m.WorkhourDetailsViewport.SetContent(m.WorkhourDetailsTable.View())
 
-	if m.WorkhourDetailsEditModal != nil {
-		return m.WorkhourDetailsEditModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhourDetailsCreateModal != nil {
-		return m.WorkhourDetailsCreateModal.View(m.Width, m.Height)
-	}
-
-	if m.WorkhourDetailsDeleteModal != nil {
-		return m.WorkhourDetailsDeleteModal.View(m.Width, m.Height)
+	if m.ActiveModal != nil {
+		return m.ActiveModal.View(m.Width, m.Height)
 	}
 
 	return m.WorkhourDetailsViewport.View() + "\n" + helpText
