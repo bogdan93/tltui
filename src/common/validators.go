@@ -1,6 +1,32 @@
 package common
 
+// Validators provide reusable field validation functions.
+//
+// Basic usage with FormField:
+//
+//	field := NewFormField("Email", "user@example.com", 30).
+//		WithValidator(EmailValidator("Email"))
+//
+// Chain multiple validators:
+//
+//	field := NewFormField("Username", "", 20).
+//		WithValidator(ChainValidators(
+//			RequiredStringValidator("Username"),
+//			MinLengthValidator("Username", 3),
+//			MaxLengthValidator("Username", 20),
+//			AlphanumericValidator("Username"),
+//		))
+//
+// Optional validation (only validates if not empty):
+//
+//	field := NewFormField("Website", "", 50).
+//		WithValidator(OptionalValidator(
+//			RegexValidator("Website", `^https?://.*`, "Website must be a valid URL"),
+//		))
+
 import (
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -71,5 +97,96 @@ func PositiveFloatValidator(fieldName string) func(string) error {
 		}
 
 		return nil
+	}
+}
+
+// MinLengthValidator validates that the value meets minimum length
+func MinLengthValidator(fieldName string, minLength int) func(string) error {
+	return func(value string) error {
+		if len(value) < minLength {
+			return &ValidationError{
+				Field:   fieldName,
+				Message: fmt.Sprintf("%s must be at least %d characters", fieldName, minLength),
+			}
+		}
+		return nil
+	}
+}
+
+// LengthRangeValidator validates that the value is within a length range
+func LengthRangeValidator(fieldName string, minLength, maxLength int) func(string) error {
+	return func(value string) error {
+		length := len(value)
+		if length < minLength {
+			return &ValidationError{
+				Field:   fieldName,
+				Message: fmt.Sprintf("%s must be at least %d characters", fieldName, minLength),
+			}
+		}
+		if length > maxLength {
+			return &ValidationError{
+				Field:   fieldName,
+				Message: fmt.Sprintf("%s must not exceed %d characters", fieldName, maxLength),
+			}
+		}
+		return nil
+	}
+}
+
+// RegexValidator validates that the value matches a regular expression
+func RegexValidator(fieldName string, pattern string, errorMessage string) func(string) error {
+	re := regexp.MustCompile(pattern)
+	return func(value string) error {
+		if !re.MatchString(value) {
+			if errorMessage == "" {
+				errorMessage = fmt.Sprintf("%s has invalid format", fieldName)
+			}
+			return &ValidationError{
+				Field:   fieldName,
+				Message: errorMessage,
+			}
+		}
+		return nil
+	}
+}
+
+// EmailValidator validates that the value looks like an email address
+func EmailValidator(fieldName string) func(string) error {
+	// Simple email regex - not RFC compliant but good enough for basic validation
+	pattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	return RegexValidator(fieldName, pattern, fieldName+" must be a valid email address")
+}
+
+// NumericValidator validates that the value contains only digits
+func NumericValidator(fieldName string) func(string) error {
+	return RegexValidator(fieldName, `^\d+$`, fieldName+" must contain only numbers")
+}
+
+// AlphanumericValidator validates that the value contains only letters and numbers
+func AlphanumericValidator(fieldName string) func(string) error {
+	return RegexValidator(fieldName, `^[a-zA-Z0-9]+$`, fieldName+" must contain only letters and numbers")
+}
+
+// ChainValidators chains multiple validators together
+// All validators must pass for validation to succeed
+func ChainValidators(validators ...func(string) error) func(string) error {
+	return func(value string) error {
+		for _, validator := range validators {
+			if err := validator(value); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+// OptionalValidator makes a validator optional (only runs if value is not empty)
+func OptionalValidator(validator func(string) error) func(string) error {
+	return func(value string) error {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return nil
+		}
+		return validator(value)
 	}
 }
