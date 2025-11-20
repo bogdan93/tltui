@@ -1,29 +1,5 @@
 package common
 
-// Validators provide reusable field validation functions.
-//
-// Basic usage with FormField:
-//
-//	field := NewFormField("Email", "user@example.com", 30).
-//		WithValidator(EmailValidator("Email"))
-//
-// Chain multiple validators:
-//
-//	field := NewFormField("Username", "", 20).
-//		WithValidator(ChainValidators(
-//			RequiredStringValidator("Username"),
-//			MinLengthValidator("Username", 3),
-//			MaxLengthValidator("Username", 20),
-//			AlphanumericValidator("Username"),
-//		))
-//
-// Optional validation (only validates if not empty):
-//
-//	field := NewFormField("Website", "", 50).
-//		WithValidator(OptionalValidator(
-//			RegexValidator("Website", `^https?://.*`, "Website must be a valid URL"),
-//		))
-
 import (
 	"fmt"
 	"regexp"

@@ -50,7 +50,6 @@ func RenderModal(termWidth, termHeight int, modalWidth, modalHeight int, content
 	return sb.String()
 }
 
-/** RenderSimpleModal is a convenience function that auto-calculates modal size */
 func RenderSimpleModal(termWidth, termHeight int, content string) string {
 	return RenderModal(termWidth, termHeight, 0, 0, content)
 }

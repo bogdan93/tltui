@@ -7,14 +7,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// SelectOption represents a single option in a dropdown
 type SelectOption struct {
 	ID          int
 	DisplayName string
-	ExtraInfo   string // Optional additional info to display
+	ExtraInfo   string
 }
 
-// FormSelect represents a dropdown/list selection component
 type FormSelect struct {
 	Label         string
 	Options       []SelectOption
@@ -26,7 +24,6 @@ type FormSelect struct {
 	FocusedStyle  lipgloss.Style
 }
 
-// NewFormSelect creates a new select dropdown
 func NewFormSelect(label string, options []SelectOption) *FormSelect {
 	selectedIndex := -1
 	if len(options) > 0 {
@@ -45,14 +42,12 @@ func NewFormSelect(label string, options []SelectOption) *FormSelect {
 	}
 }
 
-// NewRequiredFormSelect creates a required select dropdown
 func NewRequiredFormSelect(label string, options []SelectOption) *FormSelect {
 	select_ := NewFormSelect(label, options)
 	select_.Required = true
 	return select_
 }
 
-// SetOptions updates the options list
 func (s *FormSelect) SetOptions(options []SelectOption) {
 	s.Options = options
 	if s.SelectedIndex >= len(options) {
@@ -64,18 +59,15 @@ func (s *FormSelect) SetOptions(options []SelectOption) {
 	}
 }
 
-// Focus focuses the select
 func (s *FormSelect) Focus() tea.Cmd {
 	s.Focused = true
 	return nil
 }
 
-// Blur unfocuses the select
 func (s *FormSelect) Blur() {
 	s.Focused = false
 }
 
-// Update handles up/down arrow navigation
 func (s *FormSelect) Update(msg tea.Msg) tea.Cmd {
 	if !s.Focused {
 		return nil
@@ -94,7 +86,6 @@ func (s *FormSelect) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-// SelectNext selects the next option
 func (s *FormSelect) SelectNext() {
 	if len(s.Options) == 0 {
 		return
@@ -107,7 +98,6 @@ func (s *FormSelect) SelectNext() {
 	}
 }
 
-// SelectPrevious selects the previous option
 func (s *FormSelect) SelectPrevious() {
 	if len(s.Options) == 0 {
 		return
@@ -120,7 +110,6 @@ func (s *FormSelect) SelectPrevious() {
 	}
 }
 
-// GetSelectedID returns the ID of the selected option
 func (s *FormSelect) GetSelectedID() int {
 	if s.SelectedIndex < 0 || s.SelectedIndex >= len(s.Options) {
 		return -1
@@ -128,7 +117,6 @@ func (s *FormSelect) GetSelectedID() int {
 	return s.Options[s.SelectedIndex].ID
 }
 
-// GetSelectedOption returns the selected option
 func (s *FormSelect) GetSelectedOption() *SelectOption {
 	if s.SelectedIndex < 0 || s.SelectedIndex >= len(s.Options) {
 		return nil
@@ -136,7 +124,6 @@ func (s *FormSelect) GetSelectedOption() *SelectOption {
 	return &s.Options[s.SelectedIndex]
 }
 
-// Validate validates the selection
 func (s *FormSelect) Validate() error {
 	if s.Required && (s.SelectedIndex < 0 || s.SelectedIndex >= len(s.Options)) {
 		return &ValidationError{Field: s.Label, Message: s.Label + " is required"}
@@ -144,7 +131,6 @@ func (s *FormSelect) Validate() error {
 	return nil
 }
 
-// View renders the select dropdown
 func (s *FormSelect) View() string {
 	var output string
 

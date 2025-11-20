@@ -10,10 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Handler methods for CalendarModel.Update
-// These methods break up the large Update function into logical chunks
-
-// handleWorkhourCreated handles the WorkhourCreateSubmittedMsg
 func (m CalendarModel) handleWorkhourCreated(msg WorkhourCreateSubmittedMsg) (CalendarModel, tea.Cmd) {
 	newWorkhour := domain.Workhour{
 		Date:      msg.Date,
@@ -38,7 +34,6 @@ func (m CalendarModel) handleWorkhourCreated(msg WorkhourCreateSubmittedMsg) (Ca
 	return m, nil
 }
 
-// handleWorkhourEdited handles the WorkhourEditSubmittedMsg
 func (m CalendarModel) handleWorkhourEdited(msg WorkhourEditSubmittedMsg) (CalendarModel, tea.Cmd) {
 	updatedWorkhour := domain.Workhour{
 		Date:      msg.Date,
@@ -63,7 +58,6 @@ func (m CalendarModel) handleWorkhourEdited(msg WorkhourEditSubmittedMsg) (Calen
 	return m, nil
 }
 
-// handleWorkhourDeleted handles the WorkhourDeleteConfirmedMsg
 func (m CalendarModel) handleWorkhourDeleted(msg WorkhourDeleteConfirmedMsg) (CalendarModel, tea.Cmd) {
 	err := repository.DeleteWorkhour(msg.ID)
 	if err != nil {
@@ -86,7 +80,6 @@ func (m CalendarModel) handleWorkhourDeleted(msg WorkhourDeleteConfirmedMsg) (Ca
 	return m, nil
 }
 
-// handleWorkhourCreateRequest handles the WorkhoursViewModalCreateRequestedMsg
 func (m CalendarModel) handleWorkhourCreateRequest(msg WorkhoursViewModalCreateRequestedMsg) (CalendarModel, tea.Cmd) {
 	// Save current view modal
 	if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
@@ -101,7 +94,6 @@ func (m CalendarModel) handleWorkhourCreateRequest(msg WorkhoursViewModalCreateR
 	return m, nil
 }
 
-// handleWorkhourEditRequest handles the WorkhoursViewModalEditRequestedMsg
 func (m CalendarModel) handleWorkhourEditRequest(msg WorkhoursViewModalEditRequestedMsg) (CalendarModel, tea.Cmd) {
 	// Save current view modal
 	if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
@@ -137,7 +129,6 @@ func (m CalendarModel) handleWorkhourEditRequest(msg WorkhoursViewModalEditReque
 	return m, nil
 }
 
-// handleWorkhourDeleteRequest handles the WorkhoursViewModalDeleteRequestedMsg
 func (m CalendarModel) handleWorkhourDeleteRequest(msg WorkhoursViewModalDeleteRequestedMsg) (CalendarModel, tea.Cmd) {
 	// Save current view modal
 	if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
@@ -170,7 +161,6 @@ func (m CalendarModel) handleWorkhourDeleteRequest(msg WorkhoursViewModalDeleteR
 	return m, nil
 }
 
-// handleYankWorkhours handles the 'y' key press to copy workhours
 func (m CalendarModel) handleYankWorkhours() (CalendarModel, tea.Cmd) {
 	if len(m.getWorkhoursForDate(m.SelectedDate)) == 0 {
 		return m, nil
@@ -180,7 +170,6 @@ func (m CalendarModel) handleYankWorkhours() (CalendarModel, tea.Cmd) {
 	return m, common.NotifySuccess(fmt.Sprintf("📋 Copied %d workhour(s) from %s", len(m.YankedWorkhours), m.SelectedDate.Format("2006-01-02")))
 }
 
-// handlePasteWorkhours handles the 'p' key press to paste workhours
 func (m CalendarModel) handlePasteWorkhours() (CalendarModel, tea.Cmd) {
 	if len(m.YankedWorkhours) == 0 {
 		return m, nil
@@ -206,7 +195,6 @@ func (m CalendarModel) handlePasteWorkhours() (CalendarModel, tea.Cmd) {
 	return m, nil
 }
 
-// handleDeleteWorkhours handles the 'd'/'x' key press to delete workhours for a date
 func (m CalendarModel) handleDeleteWorkhours() (CalendarModel, tea.Cmd) {
 	err := repository.DeleteWorkhoursByDate(m.SelectedDate)
 	if err != nil {
@@ -219,7 +207,6 @@ func (m CalendarModel) handleDeleteWorkhours() (CalendarModel, tea.Cmd) {
 	return m, nil
 }
 
-// handleOpenReportGenerator handles the 'g' key press to open report generator
 func (m CalendarModel) handleOpenReportGenerator() (CalendarModel, tea.Cmd) {
 	if m.ActiveModal == nil {
 		m.ActiveModal = &ReportGeneratorModalWrapper{
@@ -229,7 +216,6 @@ func (m CalendarModel) handleOpenReportGenerator() (CalendarModel, tea.Cmd) {
 	return m, nil
 }
 
-// handleOpenDayView handles the 'enter' key press to open day workhours view
 func (m CalendarModel) handleOpenDayView() (CalendarModel, tea.Cmd) {
 	if m.ActiveModal == nil {
 		workhours := m.getWorkhoursForDate(m.SelectedDate)

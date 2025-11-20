@@ -5,14 +5,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Form manages multiple form fields with focus navigation
 type Form struct {
 	Fields       []*FormField
 	FocusedIndex int
 	ErrorMessage string
 }
 
-// NewForm creates a new form with the given fields
 func NewForm(fields ...*FormField) *Form {
 	form := &Form{
 		Fields:       fields,
@@ -27,7 +25,6 @@ func NewForm(fields ...*FormField) *Form {
 	return form
 }
 
-// Update handles common form interactions (tab navigation)
 func (f *Form) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
@@ -51,7 +48,6 @@ func (f *Form) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// NextField moves focus to the next field
 func (f *Form) NextField() {
 	if len(f.Fields) == 0 {
 		return
@@ -62,7 +58,6 @@ func (f *Form) NextField() {
 	f.Fields[f.FocusedIndex].Focus()
 }
 
-// PrevField moves focus to the previous field
 func (f *Form) PrevField() {
 	if len(f.Fields) == 0 {
 		return
@@ -73,7 +68,6 @@ func (f *Form) PrevField() {
 	f.Fields[f.FocusedIndex].Focus()
 }
 
-// FocusField focuses a specific field by index
 func (f *Form) FocusField(index int) {
 	if index < 0 || index >= len(f.Fields) {
 		return
@@ -84,7 +78,6 @@ func (f *Form) FocusField(index int) {
 	f.Fields[f.FocusedIndex].Focus()
 }
 
-// Validate validates all fields in the form
 func (f *Form) Validate() error {
 	f.ErrorMessage = ""
 
@@ -99,17 +92,14 @@ func (f *Form) Validate() error {
 	return nil
 }
 
-// SetError sets an error message on the form
 func (f *Form) SetError(message string) {
 	f.ErrorMessage = message
 }
 
-// ClearError clears the error message
 func (f *Form) ClearError() {
 	f.ErrorMessage = ""
 }
 
-// GetValue returns the value of a field by index
 func (f *Form) GetValue(index int) string {
 	if index < 0 || index >= len(f.Fields) {
 		return ""
@@ -117,7 +107,6 @@ func (f *Form) GetValue(index int) string {
 	return f.Fields[index].Value()
 }
 
-// View renders all fields with error message if present
 func (f *Form) View() string {
 	var output string
 

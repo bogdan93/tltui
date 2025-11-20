@@ -10,10 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Handler methods for ProjectsModel.Update
-// These methods break up the Update function into logical chunks
-
-// handleProjectCreated handles the ProjectCreatedMsg
 func (m ProjectsModel) handleProjectCreated(msg ProjectCreatedMsg) (ProjectsModel, tea.Cmd) {
 	newProject := domain.Project{
 		ID:     m.NextID,
@@ -40,7 +36,6 @@ func (m ProjectsModel) handleProjectCreated(msg ProjectCreatedMsg) (ProjectsMode
 	return m, nil
 }
 
-// handleProjectEdited handles the ProjectEditedMsg
 func (m ProjectsModel) handleProjectEdited(msg ProjectEditedMsg) (ProjectsModel, tea.Cmd) {
 	updatedProject := domain.Project{
 		ID:     msg.ProjectID,
@@ -65,7 +60,6 @@ func (m ProjectsModel) handleProjectEdited(msg ProjectEditedMsg) (ProjectsModel,
 	return m, nil
 }
 
-// handleProjectDeleted handles the ProjectDeletedMsg
 func (m ProjectsModel) handleProjectDeleted(msg ProjectDeletedMsg) (ProjectsModel, tea.Cmd) {
 	err := repository.DeleteProject(msg.ProjectID)
 	if err != nil {
@@ -85,7 +79,6 @@ func (m ProjectsModel) handleProjectDeleted(msg ProjectDeletedMsg) (ProjectsMode
 	return m, nil
 }
 
-// updateTableRows updates the table with current projects data
 func (m *ProjectsModel) updateTableRows() {
 	rows := []table.Row{}
 	for _, p := range m.Projects {

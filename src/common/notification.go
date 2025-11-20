@@ -29,7 +29,6 @@ type ShowNotificationMsg struct {
 
 type ClearNotificationMsg struct{}
 
-// Helper functions to dispatch notifications
 func DispatchErrorNotification(message string) tea.Cmd {
 	return func() tea.Msg {
 		return ShowNotificationMsg{
@@ -57,23 +56,18 @@ func DispatchInfoNotification(message string) tea.Cmd {
 	}
 }
 
-// Simplified notification helpers with shorter names
-// NotifyError creates an error notification from an error and action context
 func NotifyError(action string, err error) tea.Cmd {
 	return DispatchErrorNotification(action + ": " + err.Error())
 }
 
-// NotifySuccess creates a success notification
 func NotifySuccess(message string) tea.Cmd {
 	return DispatchSuccessNotification(message)
 }
 
-// NotifyInfo creates an info notification
 func NotifyInfo(message string) tea.Cmd {
 	return DispatchInfoNotification(message)
 }
 
-// RenderNotification renders a notification bar
 func RenderNotification(notification *Notification) string {
 	if notification == nil {
 		return ""
@@ -109,14 +103,12 @@ func RenderNotification(notification *Notification) string {
 	return style.Render(prefix + notification.Message)
 }
 
-// StartNotificationTimeout returns a command that clears notification after delay
 func StartNotificationTimeout(duration time.Duration) tea.Cmd {
 	return tea.Tick(duration, func(t time.Time) tea.Msg {
 		return ClearNotificationMsg{}
 	})
 }
 
-// RenderNotificationOverlay overlays the notification at the bottom right of the main view
 func RenderNotificationOverlay(notification *Notification, mainView string) string {
 	if notification == nil {
 		return mainView
