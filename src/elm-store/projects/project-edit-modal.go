@@ -24,9 +24,15 @@ type ProjectEditedMsg struct {
 type ProjectEditCanceledMsg struct{}
 
 func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditModal {
+	// Name field with length validation
 	nameField := common.NewRequiredFormField("Name", "Project Name", 40).
-		WithInitialValue(name)
+		WithInitialValue(name).
+		WithValidator(common.ChainValidators(
+			common.MinLengthValidator("Name", 2),
+			common.MaxLengthValidator("Name", 50),
+		))
 
+	// Odoo ID field with positive integer validation
 	odooIDField := common.NewRequiredFormField("Odoo ID", "Odoo ID", 40).
 		WithCharLimit(10).
 		WithValidator(common.PositiveIntValidator("Odoo ID")).
