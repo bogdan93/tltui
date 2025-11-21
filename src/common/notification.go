@@ -68,11 +68,7 @@ func NotifyInfo(message string) tea.Cmd {
 	return DispatchInfoNotification(message)
 }
 
-func RenderNotification(notification *Notification) string {
-	if notification == nil {
-		return ""
-	}
-
+func RenderNotification(notification Notification) string {
 	var style lipgloss.Style
 	var prefix string
 
@@ -109,47 +105,24 @@ func StartNotificationTimeout(duration time.Duration) tea.Cmd {
 	})
 }
 
-func RenderNotificationOverlay(notification *Notification, mainView string) string {
-	if notification == nil {
-		return mainView
-	}
-
-	// Get the notification bar
+func RenderNotificationOverlay(notification Notification, mainView string, terminalWidth int) string {
 	notificationBar := RenderNotification(notification)
 
-	// Split the main view into lines
 	lines := strings.Split(mainView, "\n")
 	if len(lines) == 0 {
 		return notificationBar
 	}
 
-	// Get the width of the terminal (assume from first line)
-	terminalWidth := len(lines[0])
-	if terminalWidth == 0 {
-		terminalWidth = 80 // fallback
-	}
-
-	// Get notification width (strip ANSI codes for accurate length)
 	notificationWidth := lipgloss.Width(notificationBar)
 
-	// Find the last non-empty line to place notification
-	lastLineIndex := len(lines) - 1
-	for lastLineIndex >= 0 && strings.TrimSpace(lines[lastLineIndex]) == "" {
-		lastLineIndex--
-	}
+	lastLineIndex := len(lines) - 2
 
 	if lastLineIndex < 0 {
 		lastLineIndex = len(lines) - 1
 	}
 
-	// Calculate padding to align to the right
-	padding := terminalWidth - notificationWidth
-	if padding < 0 {
-		padding = 0
-	}
+	padding := terminalWidth - notificationWidth;
 
-	// Position notification at bottom right by replacing the last line
-	// Pad with spaces to push it to the right
 	lines[lastLineIndex] = strings.Repeat(" ", padding) + notificationBar
 
 	return strings.Join(lines, "\n")

@@ -81,7 +81,6 @@ func (m CalendarModel) handleWorkhourDeleted(msg WorkhourDeleteConfirmedMsg) (Ca
 }
 
 func (m CalendarModel) handleWorkhourCreateRequest(msg WorkhoursViewModalCreateRequestedMsg) (CalendarModel, tea.Cmd) {
-	// Save current view modal
 	if viewWrapper, ok := m.ActiveModal.(*WorkhoursViewModalWrapper); ok {
 		m.ViewModalParent = viewWrapper
 	}

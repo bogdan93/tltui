@@ -68,12 +68,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case WorkhoursViewModalDeleteRequestedMsg:
 		return m.handleWorkhourDeleteRequest(msg)
 
-	// Create modal
 	case WorkhourCreateSubmittedMsg:
 		return m.handleWorkhourCreated(msg)
 
 	case WorkhourCreateCanceledMsg:
-		// Restore view modal without refresh
 		if m.ViewModalParent != nil {
 			m.ActiveModal = m.ViewModalParent
 			m.ViewModalParent = nil
@@ -82,12 +80,10 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	// Edit modal
 	case WorkhourEditSubmittedMsg:
 		return m.handleWorkhourEdited(msg)
 
 	case WorkhourEditCanceledMsg:
-		// Restore view modal without refresh
 		if m.ViewModalParent != nil {
 			m.ActiveModal = m.ViewModalParent
 			m.ViewModalParent = nil
@@ -101,7 +97,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleWorkhourDeleted(msg)
 
 	case WorkhourDeleteCanceledMsg:
-		// Restore view modal without refresh
 		if m.ViewModalParent != nil {
 			m.ActiveModal = m.ViewModalParent
 			m.ViewModalParent = nil

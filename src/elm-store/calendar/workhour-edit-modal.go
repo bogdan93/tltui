@@ -38,7 +38,6 @@ func NewWorkhourEditModal(
 	workhourDetails []domain.WorkhourDetails,
 	projects []domain.Project,
 ) *WorkhourEditModal {
-	// Build activity/details options
 	detailsOptions := make([]common.SelectOption, len(workhourDetails))
 	selectedDetailsIndex := 0
 	for i, d := range workhourDetails {
@@ -56,7 +55,6 @@ func NewWorkhourEditModal(
 		}
 	}
 
-	// Build project options
 	projectOptions := make([]common.SelectOption, len(projects))
 	selectedProjectIndex := 0
 	for i, p := range projects {
@@ -70,7 +68,6 @@ func NewWorkhourEditModal(
 		}
 	}
 
-	// Create form elements
 	detailsSelect := common.NewRequiredFormSelect("Type", detailsOptions)
 	detailsSelect.SelectedIndex = selectedDetailsIndex
 

@@ -5,7 +5,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// FormElement represents any focusable form element
 type FormElement interface {
 	Focus() tea.Cmd
 	Blur()
@@ -13,14 +12,12 @@ type FormElement interface {
 	View() string
 }
 
-// MixedForm manages multiple form elements (fields, checkboxes, etc.) with focus navigation
 type MixedForm struct {
 	Elements     []FormElement
 	FocusedIndex int
 	ErrorMessage string
 }
 
-// NewMixedForm creates a new form with the given elements
 func NewMixedForm(elements ...FormElement) *MixedForm {
 	form := &MixedForm{
 		Elements:     elements,
@@ -35,7 +32,6 @@ func NewMixedForm(elements ...FormElement) *MixedForm {
 	return form
 }
 
-// Update handles common form interactions (tab navigation)
 func (f *MixedForm) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 
@@ -51,7 +47,6 @@ func (f *MixedForm) Update(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	// Update the focused element
 	if f.FocusedIndex >= 0 && f.FocusedIndex < len(f.Elements) {
 		cmd = f.Elements[f.FocusedIndex].Update(msg)
 	}
@@ -59,7 +54,6 @@ func (f *MixedForm) Update(msg tea.Msg) tea.Cmd {
 	return cmd
 }
 
-// NextField moves focus to the next element
 func (f *MixedForm) NextField() {
 	if len(f.Elements) == 0 {
 		return
@@ -70,7 +64,6 @@ func (f *MixedForm) NextField() {
 	f.Elements[f.FocusedIndex].Focus()
 }
 
-// PrevField moves focus to the previous element
 func (f *MixedForm) PrevField() {
 	if len(f.Elements) == 0 {
 		return
@@ -81,7 +74,6 @@ func (f *MixedForm) PrevField() {
 	f.Elements[f.FocusedIndex].Focus()
 }
 
-// FocusField focuses a specific element by index
 func (f *MixedForm) FocusField(index int) {
 	if index < 0 || index >= len(f.Elements) {
 		return
@@ -92,17 +84,14 @@ func (f *MixedForm) FocusField(index int) {
 	f.Elements[f.FocusedIndex].Focus()
 }
 
-// SetError sets an error message on the form
 func (f *MixedForm) SetError(message string) {
 	f.ErrorMessage = message
 }
 
-// ClearError clears the error message
 func (f *MixedForm) ClearError() {
 	f.ErrorMessage = ""
 }
 
-// GetField returns a FormField by index (if the element is a FormField)
 func (f *MixedForm) GetField(index int) *FormField {
 	if index < 0 || index >= len(f.Elements) {
 		return nil
@@ -113,7 +102,6 @@ func (f *MixedForm) GetField(index int) *FormField {
 	return nil
 }
 
-// GetCheckbox returns a FormCheckbox by index (if the element is a FormCheckbox)
 func (f *MixedForm) GetCheckbox(index int) *FormCheckbox {
 	if index < 0 || index >= len(f.Elements) {
 		return nil
@@ -124,7 +112,6 @@ func (f *MixedForm) GetCheckbox(index int) *FormCheckbox {
 	return nil
 }
 
-// GetSelect returns a FormSelect by index (if the element is a FormSelect)
 func (f *MixedForm) GetSelect(index int) *FormSelect {
 	if index < 0 || index >= len(f.Elements) {
 		return nil
@@ -135,12 +122,10 @@ func (f *MixedForm) GetSelect(index int) *FormSelect {
 	return nil
 }
 
-// Validate validates all FormField and FormSelect elements in the form
 func (f *MixedForm) Validate() error {
 	f.ErrorMessage = ""
 
 	for i, element := range f.Elements {
-		// Validate FormField elements
 		if field, ok := element.(*FormField); ok {
 			if err := field.Validate(); err != nil {
 				f.ErrorMessage = err.Error()
@@ -149,7 +134,6 @@ func (f *MixedForm) Validate() error {
 			}
 		}
 
-		// Validate FormSelect elements
 		if select_, ok := element.(*FormSelect); ok {
 			if err := select_.Validate(); err != nil {
 				f.ErrorMessage = err.Error()
@@ -162,7 +146,6 @@ func (f *MixedForm) Validate() error {
 	return nil
 }
 
-// View renders all elements with error message if present
 func (f *MixedForm) View() string {
 	var output string
 
@@ -171,7 +154,6 @@ func (f *MixedForm) View() string {
 		output += "\n"
 	}
 
-	// Show error message if present
 	if f.ErrorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).

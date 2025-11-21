@@ -140,7 +140,7 @@ func (m AppModel) View() string {
 		content = m.WorkhourDetails.View()
 
 	default:
-		return ""
+		content = ""
 	}
 
 	isModalOpened := m.Calendar.ActiveModal != nil || m.Projects.ActiveModal != nil || m.WorkhourDetails.ActiveModal != nil
@@ -149,11 +149,16 @@ func (m AppModel) View() string {
 	if !isModalOpened {
 		mainView = render.RenderPageLayoutWithTabs(activeTabIndex, content)
 	} else {
-		mainView = content;
+		mainView = content
 	}
 
 	if m.Notification != nil {
-		return common.RenderNotificationOverlay(m.Notification, mainView)
+		return common.RenderNotificationOverlay(
+			*m.Notification,
+			mainView,
+			// TODO(bogdan): fix width retrieval
+			m.Calendar.Width,
+		)
 	}
 
 	return mainView
