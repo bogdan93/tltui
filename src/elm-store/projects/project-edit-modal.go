@@ -55,7 +55,7 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 
 			name := strings.TrimSpace(m.Form.GetField(0).Value())
 			odooIDStr := strings.TrimSpace(m.Form.GetField(1).Value())
-			odooID, _ := strconv.Atoi(odooIDStr) // Already validated
+			odooID, _ := strconv.Atoi(odooIDStr) 
 
 			return *m, tea.Batch(
 				dispatchEditedMsg(m.EditingProjectID, name, odooID),

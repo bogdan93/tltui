@@ -75,7 +75,7 @@ func (f *FormField) Update(msg tea.Msg) tea.Cmd {
 	  switch msg.String() {
 		    case "up":
 		      return DispatchFocusPrev()
-		    case "down":
+		    case "down", "enter":
 		      return DispatchFocusNext()
 		}
 	}
