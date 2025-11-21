@@ -5,6 +5,21 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type FocusNextMsg struct{}
+type FocusPrevMsg struct{}
+
+func DispatchFocusNext() tea.Cmd {
+	return func() tea.Msg {
+		return FocusNextMsg{}
+	}
+}
+
+func DispatchFocusPrev() tea.Cmd {
+	return func() tea.Msg {
+		return FocusPrevMsg{}
+	}
+}
+
 type FormElement interface {
 	Focus() tea.Cmd
 	Blur()
@@ -49,6 +64,14 @@ func (f *MixedForm) Update(msg tea.Msg) tea.Cmd {
 
 	if f.FocusedIndex >= 0 && f.FocusedIndex < len(f.Elements) {
 		cmd = f.Elements[f.FocusedIndex].Update(msg)
+	}
+
+	switch msg.(type) {
+	case FocusNextMsg:
+		f.NextField()
+
+	case FocusPrevMsg:
+		f.PrevField()
 	}
 
 	return cmd

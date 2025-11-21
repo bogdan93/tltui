@@ -70,6 +70,17 @@ func (f *FormField) Blur() {
 }
 
 func (f *FormField) Update(msg tea.Msg) tea.Cmd {
+  switch msg := msg.(type) {
+	case tea.KeyMsg:
+	  switch msg.String() {
+		    case "up":
+		      return DispatchFocusPrev()
+		    case "down":
+		      return DispatchFocusNext()
+		}
+	}
+
+
 	var cmd tea.Cmd
 	f.Input, cmd = f.Input.Update(msg)
 	return cmd

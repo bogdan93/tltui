@@ -43,8 +43,13 @@ func (c *FormCheckbox) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.String() == " " {
+		switch msg.String() {
+		case " ":
 			c.Value = !c.Value
+		case "up", "k":
+		  return DispatchFocusPrev()
+		case "down", "j":
+		  return DispatchFocusNext()
 		}
 	}
 

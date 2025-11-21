@@ -12,7 +12,7 @@ import (
 
 type ProjectEditModal struct {
 	EditingProjectID int
-	Form             *common.Form
+	Form             *common.MixedForm
 }
 
 type ProjectEditedMsg struct {
@@ -24,7 +24,6 @@ type ProjectEditedMsg struct {
 type ProjectEditCanceledMsg struct{}
 
 func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditModal {
-	// Name field with length validation
 	nameField := common.NewRequiredFormField("Name", "Project Name", 40).
 		WithInitialValue(name).
 		WithValidator(common.ChainValidators(
@@ -32,13 +31,12 @@ func NewProjectEditModal(projectID int, name string, odooID int) *ProjectEditMod
 			common.MaxLengthValidator("Name", 50),
 		))
 
-	// Odoo ID field with positive integer validation
 	odooIDField := common.NewRequiredFormField("Odoo ID", "Odoo ID", 40).
 		WithCharLimit(10).
 		WithValidator(common.PositiveIntValidator("Odoo ID")).
 		WithInitialValue(strconv.Itoa(odooID))
 
-	form := common.NewForm(&nameField, &odooIDField)
+	form := common.NewMixedForm(&nameField, &odooIDField)
 
 	return &ProjectEditModal{
 		EditingProjectID: projectID,
@@ -55,8 +53,8 @@ func (m *ProjectEditModal) Update(msg tea.Msg) (ProjectEditModal, tea.Cmd) {
 				return *m, nil
 			}
 
-			name := strings.TrimSpace(m.Form.GetValue(0))
-			odooIDStr := strings.TrimSpace(m.Form.GetValue(1))
+			name := strings.TrimSpace(m.Form.GetField(0).Value())
+			odooIDStr := strings.TrimSpace(m.Form.GetField(1).Value())
 			odooID, _ := strconv.Atoi(odooIDStr) // Already validated
 
 			return *m, tea.Batch(

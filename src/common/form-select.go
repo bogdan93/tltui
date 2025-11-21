@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+
 type SelectOption struct {
 	ID          int
 	DisplayName string
@@ -76,10 +77,14 @@ func (s *FormSelect) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "up":
+		case "up", "k":
 			s.SelectPrevious()
-		case "down":
+		case "down", "j":	
 			s.SelectNext()
+		case "right", "l":
+			return DispatchFocusNext()
+		case "left", "h":
+			return DispatchFocusPrev()
 		}
 	}
 

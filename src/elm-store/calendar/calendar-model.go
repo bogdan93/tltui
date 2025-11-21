@@ -58,7 +58,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ActiveModal = nil
 		return m, common.NotifyError("Failed to generate report", msg.Error)
 
-	// View modal requests
 	case WorkhoursViewModalCreateRequestedMsg:
 		return m.handleWorkhourCreateRequest(msg)
 
@@ -92,7 +91,6 @@ func (m CalendarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	// Delete modal
 	case WorkhourDeleteConfirmedMsg:
 		return m.handleWorkhourDeleted(msg)
 
