@@ -94,6 +94,14 @@ func (m *WorkhourCreateModal) Update(msg tea.Msg) (WorkhourCreateModal, tea.Cmd)
 	}
 
 	cmd := m.Form.Update(msg)
+
+	switch msg.(type) {
+	case common.TryQuitMsg:
+		return *m, tea.Batch(
+			dispatchWorkhourCreateCanceledMsg(),
+		)
+	}
+
 	return *m, cmd
 }
 

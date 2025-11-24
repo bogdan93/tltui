@@ -7,6 +7,13 @@ import (
 
 type FocusNextMsg struct{}
 type FocusPrevMsg struct{}
+type TryQuitMsg struct{}
+
+func DispatchTryQuit() tea.Cmd {
+	return func() tea.Msg {
+		return TryQuitMsg{}
+	}
+}
 
 func DispatchFocusNext() tea.Cmd {
 	return func() tea.Msg {
