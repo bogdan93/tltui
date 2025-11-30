@@ -549,13 +549,6 @@ func (m ReportGeneratorModal) renderStatsPreview() string {
 	focusedStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
 	focusedDaysStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("240"))
 
-	sb.WriteString(sectionStyle.Render("Summary"))
-	sb.WriteString("\n")
-	sb.WriteString(activityStyle.Render(fmt.Sprintf("  Total Hours: %s", hoursStyle.Render(fmt.Sprintf("%.1f", stats.TotalHours)))))
-	sb.WriteString("\n")
-	sb.WriteString(activityStyle.Render(fmt.Sprintf("  Days Worked: %s", hoursStyle.Render(fmt.Sprintf("%d", stats.TotalDays)))))
-	sb.WriteString("\n\n")
-
 	if len(stats.ProjectActivityHours) > 0 {
 		sb.WriteString(sectionStyle.Render("Hours by Project (Space to toggle)"))
 		sb.WriteString("\n")
@@ -576,8 +569,8 @@ func (m ReportGeneratorModal) renderStatsPreview() string {
 		for _, p := range projects {
 			projectDays := p.hours / 8.0
 			sb.WriteString(projectStyle.Render(fmt.Sprintf("  %s", p.name)))
-			sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %.1fh", p.hours)))
-			sb.WriteString(daysStyle.Render(fmt.Sprintf("(%.1fd)", projectDays)))
+			sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %gh", p.hours)))
+			sb.WriteString(daysStyle.Render(fmt.Sprintf("(%gd)", projectDays)))
 			sb.WriteString("\n")
 
 			if activities, ok := stats.ProjectActivityHours[p.name]; ok {
@@ -617,12 +610,12 @@ func (m ReportGeneratorModal) renderStatsPreview() string {
 
 					if isFocused {
 						sb.WriteString(focusedStyle.Render(line))
-						sb.WriteString(focusedStyle.Render(fmt.Sprintf(" %.1fh", a.hours)))
-						sb.WriteString(focusedDaysStyle.Render(fmt.Sprintf("(%.1fd)", activityDays)))
+						sb.WriteString(focusedStyle.Render(fmt.Sprintf(" %gh", a.hours)))
+						sb.WriteString(focusedDaysStyle.Render(fmt.Sprintf("(%gd)", activityDays)))
 					} else {
 						sb.WriteString(activityStyle.Render(line))
-						sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %.1fh", a.hours)))
-						sb.WriteString(daysStyle.Render(fmt.Sprintf("(%.1fd)", activityDays)))
+						sb.WriteString(hoursStyle.Render(fmt.Sprintf(" %gh", a.hours)))
+						sb.WriteString(daysStyle.Render(fmt.Sprintf("(%gd)", activityDays)))
 					}
 					sb.WriteString("\n")
 
