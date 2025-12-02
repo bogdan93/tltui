@@ -1,16 +1,17 @@
 .PHONY: run build clean
 
-build: clean install
-	go build -o bin/app src/main.go
+build: clean install-go-deps
+	go build -o bin/tltui src/main.go
+	sudo cp ./bin/tltui /usr/local/bin/
 
 run: 
-	./bin/app
+	./bin/tltui
 
-install:
+install-go-deps:
 	go install ./src/...
 
 clean:
-	rm -f bin/app
+	rm -f bin/tltui
 
 test:
 	go test ./src/... -v | grep -E "(FAIL|PASS|ok)"
